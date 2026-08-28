@@ -13,8 +13,8 @@ export function FilterPill({ label, active = false, onClick }: FilterPillProps) 
       onClick={onClick}
       className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
         active
-          ? "border-cyan-500 bg-cyan-500/15 text-cyan-200"
-          : "border-white/10 bg-slate-950/60 text-slate-300 hover:border-cyan-500/20 hover:bg-cyan-500/10"
+          ? "border-azure bg-azure-soft text-azure-deep"
+          : "border-line bg-surface text-ink-muted hover:border-azure/30 hover:bg-azure-soft/50"
       }`}
     >
       {label}

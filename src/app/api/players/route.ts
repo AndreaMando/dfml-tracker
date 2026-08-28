@@ -1,14 +1,45 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { db } from "../../../db";
-import { players } from "../../../db/schema";
+import { participants, players, rosterPlayers, rosters } from "../../../db/schema";
+import { createPlayerSchema } from "../../../lib/schemas";
+import { parseJsonBody } from "../../../lib/validate";
 
 export async function GET() {
-  const rows = await db.select().from(players);
+  const rows = await db
+    .select({
+      id: players.id,
+      externalId: players.externalId,
+      fullName: players.fullName,
+      position: players.position,
+      teamName: players.teamName,
+      birthYear: players.birthYear,
+      isUnder21: players.isUnder21,
+      currentValue: players.currentValue,
+      initialValue: players.initialValue,
+      fvm: players.fvm,
+      status: players.status,
+      imageUrl: players.imageUrl,
+      createdAt: players.createdAt,
+      ownerRosterId: rosters.id,
+      ownerRosterName: rosters.name,
+      ownerParticipantName: participants.displayName,
+    })
+    .from(players)
+    .leftJoin(
+      rosterPlayers,
+      eq(rosterPlayers.playerId, players.id)
+    )
+    .leftJoin(rosters, eq(rosters.id, rosterPlayers.rosterId))
+    .leftJoin(participants, eq(participants.id, rosters.participantId));
+
   return NextResponse.json(rows);
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const parsed = await parseJsonBody(request, createPlayerSchema);
+  if ("response" in parsed) return parsed.response;
+  const body = parsed.data;
 
   const inserted = await db
     .insert(players)

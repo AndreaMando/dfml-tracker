@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../db";
 import { matchdayLineups, lineupPlayers } from "../../../db/schema";
+import { createLineupSchema } from "../../../lib/schemas";
+import { parseJsonBody } from "../../../lib/validate";
 
 export async function GET() {
   const rows = await db.select().from(matchdayLineups);
@@ -8,14 +10,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const parsed = await parseJsonBody(request, createLineupSchema);
+  if ("response" in parsed) return parsed.response;
+  const body = parsed.data;
 
   const insertedLineup = await db
     .insert(matchdayLineups)
     .values({
       seasonId: body.seasonId,
       rosterId: body.rosterId,
-      matchdayNumber: Number(body.matchdayNumber),
+      matchdayNumber: body.matchdayNumber,
       formation: body.formation ?? null,
       submittedAt: body.submittedAt ? new Date(body.submittedAt) : null,
     })
@@ -23,9 +27,9 @@ export async function POST(request: Request) {
 
   const lineupId = insertedLineup[0]?.id;
 
-  if (lineupId && Array.isArray(body.players)) {
+  if (lineupId && body.players && body.players.length > 0) {
     await db.insert(lineupPlayers).values(
-      body.players.map((player: any) => ({
+      body.players.map((player) => ({
         lineupId,
         playerId: player.playerId,
         role: player.role,

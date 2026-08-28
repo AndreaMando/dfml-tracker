@@ -11,15 +11,15 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, subtitle, actionLabel, actionHref, children }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-4 rounded-3xl border border-line bg-surface p-6 shadow-sm md:flex-row md:items-center md:justify-between">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-300">{title}</p>
-        {subtitle ? <p className="mt-2 text-sm text-slate-400">{subtitle}</p> : null}
+        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-azure-deep">{title}</p>
+        {subtitle ? <p className="mt-2 text-sm text-ink-muted">{subtitle}</p> : null}
       </div>
       {actionHref && actionLabel ? (
         <a
           href={actionHref}
-          className="inline-flex items-center gap-2 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20"
+          className="inline-flex items-center gap-2 rounded-2xl border border-azure/20 bg-azure-soft px-4 py-3 text-sm font-medium text-azure-deep transition hover:bg-azure/10"
         >
           {actionLabel}
           <ArrowRight size={16} />

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "matchday_fixtures_season_matchday_pairing_unique" ON "matchday_fixtures" USING btree ("season_id","matchday_number","roster_id_home","roster_id_away");

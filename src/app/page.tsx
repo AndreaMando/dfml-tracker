@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -11,7 +12,6 @@ import {
   Trophy,
   Users,
   ClipboardList,
-  HeartHandshake,
 } from "lucide-react";
 import { useTranslation } from "../lib/i18n";
 import { SectionCard } from "../components/section-card";
@@ -21,7 +21,6 @@ const endpoints = [
   { labelKey: "Participants", href: "/participants", icon: Users },
   { labelKey: "Players", href: "/players", icon: Trophy },
   { labelKey: "Rosters", href: "/rosters", icon: ClipboardList },
-  { labelKey: "Lineups", href: "/lineups", icon: HeartHandshake },
   { labelKey: "Market", href: "/market", icon: ShoppingCart },
   { labelKey: "Scores", href: "/scores", icon: BarChart3 },
   { labelKey: "Standings", href: "/standings", icon: Trophy },
@@ -29,8 +28,38 @@ const endpoints = [
   { labelKey: "History", href: "/history", icon: History },
 ];
 
+type Season = { id: string; name: string; status: string };
+type Participant = { id: string; seasonId: string };
+type StandingRow = { rosterId: string; rosterName: string | null; points: number };
+
 export default function Home() {
   const { t } = useTranslation();
+  const [participantsCount, setParticipantsCount] = useState<number | null>(null);
+  const [playersCount, setPlayersCount] = useState<number | null>(null);
+  const [leaderName, setLeaderName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/players")
+      .then((res) => res.json())
+      .then((rows: unknown[]) => setPlayersCount(rows.length));
+
+    fetch("/api/seasons")
+      .then((res) => res.json())
+      .then(async (seasons: Season[]) => {
+        const active = seasons.find((s) => s.status === "active") ?? seasons[0];
+        if (!active) return;
+
+        const [participants, standings] = await Promise.all([
+          fetch("/api/participants")
+            .then((res) => res.json())
+            .then((rows: Participant[]) => rows.filter((p) => p.seasonId === active.id)),
+          fetch(`/api/standings?seasonId=${active.id}`).then((res) => res.json()) as Promise<StandingRow[]>,
+        ]);
+
+        setParticipantsCount(participants.length);
+        setLeaderName(standings[0]?.rosterName ?? null);
+      });
+  }, []);
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,52 +74,27 @@ export default function Home() {
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-[var(--ink-muted)]">
               {t(
-                "Manage your league with a clean overview of seasons, participants, rosters, lineups and market activity."
+                "Manage your league with a clean overview of seasons, participants, rosters, stats and market activity."
               )}
             </p>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <SectionCard
-          title={t("Season summary")}
-          description={t("Overview of the current season")}
-        >
-          <div className="grid gap-3 md:grid-cols-3">
-            {[
-              { label: t("Active participants"), value: "6" },
-              { label: t("Registered players"), value: "84" },
-              { label: t("Live standings"), value: "#2" },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
-              >
-                <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">
-                  {item.label}
-                </p>
-                <p className="mt-2 font-mono-data text-2xl font-semibold text-[var(--ink)]">
-                  {item.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-
-        <SectionCard title={t("Recent activity")} accent="win">
-          <div className="space-y-2 text-sm text-[var(--ink-muted)]">
-            <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
-              <span>{t("Current matchday")}</span>
-              <span className="font-mono-data text-[var(--ink)]">6</span>
+      <SectionCard title={t("Season summary")} description={t("Overview of the current season")}>
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            { label: t("Active participants"), value: participantsCount?.toString() ?? "—" },
+            { label: t("Registered players"), value: playersCount?.toString() ?? "—" },
+            { label: t("League leader"), value: leaderName ?? "—" },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+              <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{item.label}</p>
+              <p className="mt-2 font-mono-data text-2xl font-semibold text-[var(--ink)]">{item.value}</p>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
-              <span>{t("Open transfers")}</span>
-              <span className="font-mono-data text-[var(--ink)]">3</span>
-            </div>
-          </div>
-        </SectionCard>
-      </section>
+          ))}
+        </div>
+      </SectionCard>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {endpoints.map((endpoint) => {

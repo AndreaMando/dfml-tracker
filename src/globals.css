@@ -2,6 +2,26 @@
 
 @import "tailwindcss";
 
+/*
+ * Tailwind v4 reads color tokens from an `@theme` block (not from
+ * tailwind.config.cjs, which this project keeps only as reference / for
+ * the `content` globs — it is NOT wired into the v4 build). This block is
+ * what makes plain utility classes like `bg-surface`, `text-ink`,
+ * `border-line`, `bg-azure-soft`, `text-azure-deep` actually generate CSS.
+ */
+@theme {
+  --color-bg: #f4f7fb;
+  --color-surface: #ffffff;
+  --color-surface-alt: #eef3fa;
+  --color-ink: #0b1e3d;
+  --color-ink-muted: #5b6e8c;
+  --color-azure: #0f62d6;
+  --color-azure-deep: #0b3d8c;
+  --color-azure-soft: #e4eefc;
+  --color-line: #dce3ee;
+  --color-win: #0f9d63;
+}
+
 :root {
   --bg: #f4f7fb;
   --surface: #ffffff;

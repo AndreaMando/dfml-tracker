@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -9,7 +11,6 @@ import {
   Sparkles,
   ClipboardList,
   ShoppingCart,
-  HeartHandshake,
   BadgeDollarSign,
   CircleDollarSign,
   History,
@@ -23,7 +24,6 @@ const navigation = [
   { href: "/participants", labelKey: "Participants", icon: Users },
   { href: "/players", labelKey: "Players", icon: Trophy },
   { href: "/rosters", labelKey: "Rosters", icon: ClipboardList },
-  { href: "/lineups", labelKey: "Lineups", icon: HeartHandshake },
   { href: "/market", labelKey: "Market", icon: ShoppingCart },
   { href: "/scores", labelKey: "Scores", icon: BadgeDollarSign },
   { href: "/standings", labelKey: "Standings", icon: Trophy },
@@ -35,22 +35,17 @@ type TickerProps = {
   matchday?: number;
   seasonLabel?: string;
   participantsCount?: number;
-  marketStatus?: string;
+  marketOpen?: boolean;
 };
 
-function Ticker({
-  matchday = 6,
-  seasonLabel = "DFML 26/27",
-  participantsCount = 6,
-  marketStatus = "MERCATO CHIUSO",
-}: TickerProps) {
+function Ticker({ matchday, seasonLabel, participantsCount, marketOpen }: TickerProps) {
   const { t } = useTranslation();
   const items = [
-    `${t("MATCHDAY")} ${matchday}`,
-    seasonLabel,
-    `${participantsCount} ${t("PARTICIPANTS")}`,
-    marketStatus,
-  ];
+    matchday !== undefined ? `${t("MATCHDAY")} ${matchday}` : null,
+    seasonLabel ?? null,
+    participantsCount !== undefined ? `${participantsCount} ${t("PARTICIPANTS")}` : null,
+    marketOpen !== undefined ? t(marketOpen ? "MARKET OPEN" : "MARKET CLOSED") : null,
+  ].filter((item): item is string => item !== null);
 
   return (
     <div className="w-full bg-[var(--azure-deep)] text-white">
@@ -69,21 +64,64 @@ function Ticker({
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { t, lang, setLang } = useTranslation();
+  const [ticker, setTicker] = useState<TickerProps>({});
+
+  useEffect(() => {
+    fetch("/api/seasons")
+      .then((res) => res.json())
+      .then(async (seasons: { id: string; name: string; status: string }[]) => {
+        const active = seasons.find((s) => s.status === "active") ?? seasons[0];
+        if (!active) return;
+
+        const [participants, fixtures, marketSessions] = await Promise.all([
+          fetch("/api/participants")
+            .then((res) => res.json())
+            .then((rows: { seasonId: string }[]) => rows.filter((r) => r.seasonId === active.id)),
+          fetch(`/api/fixtures?seasonId=${active.id}`).then((res) => res.json()) as Promise<
+            { matchdayNumber: number; status: string }[]
+          >,
+          fetch(`/api/market?seasonId=${active.id}`).then((res) => res.json()) as Promise<
+            { startDate: string | null; endDate: string | null }[]
+          >,
+        ]);
+
+        const playedMatchdays = fixtures.filter((f) => f.status === "played").map((f) => f.matchdayNumber);
+        const matchday = playedMatchdays.length > 0 ? Math.max(...playedMatchdays) : 1;
+
+        const now = Date.now();
+        const marketOpen = marketSessions.some((s) => {
+          if (!s.startDate || !s.endDate) return false;
+          const start = new Date(s.startDate).getTime();
+          const end = new Date(s.endDate).getTime();
+          return now >= start && now <= end;
+        });
+
+        setTicker({
+          matchday,
+          seasonLabel: active.name,
+          participantsCount: participants.length,
+          marketOpen,
+        });
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      <Ticker />
+      <Ticker {...ticker} />
 
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row lg:px-6">
         <aside className="w-full shrink-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 lg:w-64">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--azure)]">
-                DFML
-              </p>
-              <h2 className="font-display text-lg font-semibold text-[var(--ink)]">
-                {t("DFML Tracker")}
-              </h2>
+              <Image
+                src="/dfml-lockup.png"
+                alt=""
+                // P3: 2× the display size for Retina sharpness
+                width={280}
+                height={280}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                priority
+              />
             </div>
           </div>
 

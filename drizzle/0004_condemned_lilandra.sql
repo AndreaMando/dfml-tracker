@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "matchday_scores_season_player_matchday_unique" ON "matchday_scores" USING btree ("season_id","player_id","matchday_number");

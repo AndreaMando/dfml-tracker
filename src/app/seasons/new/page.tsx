@@ -14,33 +14,33 @@ export default function SeasonCreatePage() {
   return (
     <ModuleShell title={t("Create Season")} description={t("Add a new league season to the tracker.")}>
       <PageHeader title={t("New season")} subtitle={t("Create a season and configure the league timeline.")} />
-      <form className="mt-6 grid gap-5 rounded-3xl border border-white/10 bg-slate-950/70 p-6" onSubmit={(ev) => ev.preventDefault()}>
-        <label className="space-y-2 text-sm text-slate-200">
+      <form className="mt-6 grid gap-5 rounded-3xl border border-line bg-surface p-6" onSubmit={(ev) => ev.preventDefault()}>
+        <label className="block space-y-2 text-sm text-ink">
           <span>{t("Name")}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+            className="w-full rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
             placeholder={t("DFML 26/27")}
           />
         </label>
 
-        <label className="space-y-2 text-sm text-slate-200">
+        <label className="block space-y-2 text-sm text-ink">
           <span>{t("Year")}</span>
           <input
             type="number"
             value={year}
             onChange={(event) => setYear(Number(event.target.value))}
-            className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+            className="w-full rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
           />
         </label>
 
-        <label className="space-y-2 text-sm text-slate-200">
+        <label className="block space-y-2 text-sm text-ink">
           <span>{t("Status")}</span>
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+            className="w-full rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
           >
             <option value="draft">{t("Draft")}</option>
             <option value="active">{t("Active")}</option>
@@ -48,7 +48,7 @@ export default function SeasonCreatePage() {
           </select>
         </label>
 
-        <button className="w-full rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">
+        <button className="w-full rounded-2xl bg-azure px-4 py-3 text-sm font-semibold text-white transition hover:bg-azure-deep">
           {t("Create season")}
         </button>
       </form>

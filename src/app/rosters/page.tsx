@@ -1,32 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
 import { FilterPill } from "../../components/filter-pill";
 import { Tabs } from "../../components/tabs";
 import { useTranslation } from "../../lib/i18n";
-import { rosters as mockRosters } from "../../lib/mock-data";
 
-const tabs = [
-  { id: "grid", label: "Grid" },
-  { id: "table", label: "Table" },
-];
+type Roster = {
+  id: string;
+  name: string | null;
+  creditsRemaining: string | null;
+  participantName: string | null;
+  isActive: boolean | null;
+  playerCount: number;
+};
 
 const filterOptions = ["all", "active", "inactive"];
 
 export default function RostersPage() {
   const { t } = useTranslation();
+  const tabs = [
+    { id: "grid", label: t("Grid") },
+    { id: "table", label: t("Table") },
+  ];
   const [activeTab, setActiveTab] = useState("grid");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [rosters, setRosters] = useState<Roster[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/rosters")
+      .then((res) => res.json())
+      .then(setRosters)
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredRosters = useMemo(() => {
-    return mockRosters.filter((item) => {
-      if (activeFilter === "active") return item.active;
-      if (activeFilter === "inactive") return !item.active;
+    return rosters.filter((item) => {
+      if (activeFilter === "active") return !!item.isActive;
+      if (activeFilter === "inactive") return !item.isActive;
       return true;
     });
-  }, [activeFilter]);
+  }, [rosters, activeFilter]);
 
   return (
     <ModuleShell
@@ -44,43 +60,53 @@ export default function RostersPage() {
             />
           ))}
         </div>
-        <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+        <div className="flex items-center gap-3">
+          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+          <Link
+            href="/rosters/new"
+            className="rounded-2xl border border-azure/20 bg-azure-soft px-4 py-2 text-sm font-semibold text-azure-deep transition hover:bg-azure/10"
+          >
+            {t("Create roster")}
+          </Link>
+        </div>
       </div>
 
-      {activeTab === "grid" ? (
+      {loading ? (
+        <p className="text-sm text-ink-muted">{t("Loading")}...</p>
+      ) : activeTab === "grid" ? (
         <div className="grid gap-4 lg:grid-cols-3">
           {filteredRosters.map((roster) => (
             <Link
               key={roster.id}
               href={`/rosters/${roster.id}`}
-              className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 transition hover:-translate-y-0.5 hover:border-cyan-500/30"
+              className="rounded-3xl border border-line bg-surface p-5 transition hover:-translate-y-0.5 hover:border-azure/40"
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-semibold text-white">{roster.name}</h2>
-                  <p className="mt-1 text-sm text-slate-400">{roster.participant}</p>
+                  <h2 className="text-xl font-semibold text-ink">{roster.name}</h2>
+                  <p className="mt-1 text-sm text-ink-muted">{roster.participantName ?? "—"}</p>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${roster.active ? "bg-emerald-500/15 text-emerald-200" : "bg-slate-800 text-slate-300"}`}>
-                  {roster.active ? t("Active") : t("Inactive")}
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${roster.isActive ? "bg-emerald-50 text-emerald-700" : "bg-surface-alt text-ink"}`}>
+                  {roster.isActive ? t("Active") : t("Inactive")}
                 </span>
               </div>
-              <div className="mt-5 space-y-3 text-sm text-slate-300">
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900/80 px-3 py-3">
+              <div className="mt-5 space-y-3 text-sm text-ink">
+                <div className="flex items-center justify-between rounded-2xl border border-line bg-surface-alt px-3 py-3">
                   <span>{t("Players")}</span>
-                  <strong>{roster.players}</strong>
+                  <strong>{roster.playerCount}</strong>
                 </div>
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900/80 px-3 py-3">
+                <div className="flex items-center justify-between rounded-2xl border border-line bg-surface-alt px-3 py-3">
                   <span>{t("Credits")}</span>
-                  <strong>{roster.credits} </strong>
+                  <strong>{roster.creditsRemaining ?? "—"}</strong>
                 </div>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70">
-          <table className="min-w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-900/90 text-slate-400">
+        <div className="overflow-hidden rounded-3xl border border-line bg-surface">
+          <table className="min-w-full text-left text-sm text-ink">
+            <thead className="bg-surface-alt text-ink-muted">
               <tr>
                 <th className="px-4 py-3">{t("Roster")}</th>
                 <th className="px-4 py-3">{t("Manager")}</th>
@@ -91,12 +117,16 @@ export default function RostersPage() {
             </thead>
             <tbody>
               {filteredRosters.map((roster) => (
-                <tr key={roster.id} className="border-t border-white/10">
-                  <td className="px-4 py-3 text-white">{roster.name}</td>
-                  <td className="px-4 py-3">{roster.participant}</td>
-                  <td className="px-4 py-3">{roster.players}</td>
-                  <td className="px-4 py-3">{roster.credits}</td>
-                  <td className="px-4 py-3">{roster.active ? t("Active") : t("Inactive")}</td>
+                <tr key={roster.id} className="border-t border-line">
+                  <td className="px-4 py-3 text-ink">
+                    <Link href={`/rosters/${roster.id}`} className="hover:text-azure-deep">
+                      {roster.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">{roster.participantName ?? "—"}</td>
+                  <td className="px-4 py-3">{roster.playerCount}</td>
+                  <td className="px-4 py-3">{roster.creditsRemaining ?? "—"}</td>
+                  <td className="px-4 py-3">{roster.isActive ? t("Active") : t("Inactive")}</td>
                 </tr>
               ))}
             </tbody>

@@ -20,9 +20,9 @@ export const seasonStatusEnum = pgEnum("season_status", [
 
 export const marketSessionTypeEnum = pgEnum("market_session_type", [
   "initial_auction",
-  "repair_1",
-  "repair_2",
-  "free_trade",
+  "repair_summer",
+  "repair_winter",
+  "open_market",
 ]);
 
 export const lineupRoleEnum = pgEnum("lineup_role", ["starter", "bench"]);
@@ -87,30 +87,48 @@ export const leagueSettings = pgTable(
   })
 );
 
-export const participants = pgTable("participants", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  seasonId: uuid("season_id")
-    .notNull()
-    .references(() => seasons.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull(),
-  displayName: text("display_name").notNull(),
-  teamName: text("team_name"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const participants = pgTable(
+  "participants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    displayName: text("display_name").notNull(),
+    teamName: text("team_name"),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    seasonDisplayNameUnique: uniqueIndex("participants_season_display_name_unique").on(
+      table.seasonId,
+      table.displayName
+    ),
+  })
+);
 
-export const players = pgTable("players", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  externalId: text("external_id"),
-  fullName: text("full_name").notNull(),
-  position: playerPositionEnum("position").notNull(),
-  teamName: text("team_name"),
-  birthYear: integer("birth_year"),
-  isUnder21: boolean("is_under21").default(false),
-  currentValue: numeric("current_value", { precision: 10, scale: 2 }),
-  status: text("status"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const players = pgTable(
+  "players",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    externalId: text("external_id"),
+    fullName: text("full_name").notNull(),
+    position: playerPositionEnum("position").notNull(),
+    teamName: text("team_name"),
+    birthYear: integer("birth_year"),
+    isUnder21: boolean("is_under21").default(false),
+    currentValue: numeric("current_value", { precision: 10, scale: 2 }),
+    initialValue: numeric("initial_value", { precision: 10, scale: 2 }),
+    fvm: numeric("fvm", { precision: 10, scale: 2 }),
+    status: text("status"),
+    imageUrl: text("image_url"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    externalIdUnique: uniqueIndex("players_external_id_unique").on(table.externalId),
+  })
+);
 
 export const rosters = pgTable(
   "rosters",
@@ -146,26 +164,35 @@ export const marketSessions = pgTable("market_sessions", {
   isOpen: boolean("is_open").default(true),
 });
 
-export const rosterPlayers = pgTable("roster_players", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  rosterId: uuid("roster_id")
-    .notNull()
-    .references(() => rosters.id, { onDelete: "cascade" }),
-  playerId: uuid("player_id")
-    .notNull()
-    .references(() => players.id, { onDelete: "cascade" }),
-  seasonId: uuid("season_id")
-    .notNull()
-    .references(() => seasons.id, { onDelete: "cascade" }),
-  acquiredAt: timestamp("acquired_at").notNull(),
-  acquisitionPrice: numeric("acquisition_price", { precision: 10, scale: 2 }),
-  slotLockedUntilSessionId: uuid("slot_locked_until_session_id").references(
-    () => marketSessions.id,
-    { onDelete: "set null" }
-  ),
-  isActive: boolean("is_active").default(true),
-  notes: text("notes"),
-});
+export const rosterPlayers = pgTable(
+  "roster_players",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    rosterId: uuid("roster_id")
+      .notNull()
+      .references(() => rosters.id, { onDelete: "cascade" }),
+    playerId: uuid("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    acquiredAt: timestamp("acquired_at").notNull(),
+    acquisitionPrice: numeric("acquisition_price", { precision: 10, scale: 2 }),
+    slotLockedUntilSessionId: uuid("slot_locked_until_session_id").references(
+      () => marketSessions.id,
+      { onDelete: "set null" }
+    ),
+    isActive: boolean("is_active").default(true),
+    notes: text("notes"),
+  },
+  (table) => ({
+    rosterPlayerUnique: uniqueIndex("roster_players_roster_player_unique").on(
+      table.rosterId,
+      table.playerId
+    ),
+  })
+);
 
 // Note: the regulation-specific partial unique index for active players can be added later
 // in a manual SQL migration if needed for this Drizzle version.
@@ -223,47 +250,73 @@ export const lineupPlayers = pgTable("lineup_players", {
   positionIndex: integer("position_index"),
 });
 
-export const matchdayFixtures = pgTable("matchday_fixtures", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  seasonId: uuid("season_id")
-    .notNull()
-    .references(() => seasons.id, { onDelete: "cascade" }),
-  matchdayNumber: integer("matchday_number").notNull(),
-  rosterIdHome: uuid("roster_id_home").references(() => rosters.id),
-  rosterIdAway: uuid("roster_id_away").references(() => rosters.id),
-  scoreHome: numeric("score_home", { precision: 10, scale: 2 }),
-  scoreAway: numeric("score_away", { precision: 10, scale: 2 }),
-  status: fixtureStatusEnum("status").notNull().default("scheduled"),
-  playedAt: timestamp("played_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const matchdayFixtures = pgTable(
+  "matchday_fixtures",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    matchdayNumber: integer("matchday_number").notNull(),
+    rosterIdHome: uuid("roster_id_home").references(() => rosters.id),
+    rosterIdAway: uuid("roster_id_away").references(() => rosters.id),
+    scoreHome: numeric("score_home", { precision: 10, scale: 2 }),
+    scoreAway: numeric("score_away", { precision: 10, scale: 2 }),
+    goalsHome: integer("goals_home"),
+    goalsAway: integer("goals_away"),
+    status: fixtureStatusEnum("status").notNull().default("scheduled"),
+    playedAt: timestamp("played_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    seasonMatchdayPairingUnique: uniqueIndex("matchday_fixtures_season_matchday_pairing_unique").on(
+      table.seasonId,
+      table.matchdayNumber,
+      table.rosterIdHome,
+      table.rosterIdAway
+    ),
+  })
+);
 
-export const matchdayScores = pgTable("matchday_scores", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  seasonId: uuid("season_id")
-    .notNull()
-    .references(() => seasons.id, { onDelete: "cascade" }),
-  fixtureId: uuid("fixture_id").references(() => matchdayFixtures.id, {
-    onDelete: "cascade",
-  }),
-  rosterId: uuid("roster_id").references(() => rosters.id, {
-    onDelete: "cascade",
-  }),
-  playerId: uuid("player_id")
-    .notNull()
-    .references(() => players.id, { onDelete: "cascade" }),
-  matchdayNumber: integer("matchday_number").notNull(),
-  score: numeric("score", { precision: 10, scale: 2 }),
-  goals: integer("goals"),
-  assists: integer("assists"),
-  penaltiesScored: integer("penalties_scored"),
-  penaltiesSaved: integer("penalties_saved"),
-  cleanSheet: boolean("clean_sheet"),
-  goalsConceded: integer("goals_conceded"),
-  yellowCards: integer("yellow_cards"),
-  redCards: integer("red_cards"),
-  notes: text("notes"),
-});
+export const matchdayScores = pgTable(
+  "matchday_scores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    fixtureId: uuid("fixture_id").references(() => matchdayFixtures.id, {
+      onDelete: "cascade",
+    }),
+    rosterId: uuid("roster_id").references(() => rosters.id, {
+      onDelete: "cascade",
+    }),
+    playerId: uuid("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    matchdayNumber: integer("matchday_number").notNull(),
+    vote: numeric("vote", { precision: 10, scale: 2 }),
+    score: numeric("score", { precision: 10, scale: 2 }),
+    goals: integer("goals"),
+    assists: integer("assists"),
+    penaltiesScored: integer("penalties_scored"),
+    penaltiesMissed: integer("penalties_missed"),
+    penaltiesSaved: integer("penalties_saved"),
+    cleanSheet: boolean("clean_sheet"),
+    goalsConceded: integer("goals_conceded"),
+    ownGoals: integer("own_goals"),
+    yellowCards: integer("yellow_cards"),
+    redCards: integer("red_cards"),
+    notes: text("notes"),
+  },
+  (table) => ({
+    seasonPlayerMatchdayUnique: uniqueIndex("matchday_scores_season_player_matchday_unique").on(
+      table.seasonId,
+      table.playerId,
+      table.matchdayNumber
+    ),
+  })
+);
 
 export const standings = pgTable(
   "standings",
@@ -304,6 +357,78 @@ export const financialTransactions = pgTable("financial_transactions", {
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const trades = pgTable("trades", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  seasonId: uuid("season_id")
+    .notNull()
+    .references(() => seasons.id, { onDelete: "cascade" }),
+  rosterIdA: uuid("roster_id_a")
+    .notNull()
+    .references(() => rosters.id, { onDelete: "cascade" }),
+  rosterIdB: uuid("roster_id_b")
+    .notNull()
+    .references(() => rosters.id, { onDelete: "cascade" }),
+  creditsDeltaA: numeric("credits_delta_a", { precision: 10, scale: 2 }),
+  creditsDeltaB: numeric("credits_delta_b", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const tradePlayers = pgTable("trade_players", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tradeId: uuid("trade_id")
+    .notNull()
+    .references(() => trades.id, { onDelete: "cascade" }),
+  playerId: uuid("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  fromRosterId: uuid("from_roster_id")
+    .notNull()
+    .references(() => rosters.id, { onDelete: "cascade" }),
+  toRosterId: uuid("to_roster_id")
+    .notNull()
+    .references(() => rosters.id, { onDelete: "cascade" }),
+});
+
+export const tradesRelations = relations(trades, ({ one, many }) => ({
+  season: one(seasons, {
+    fields: [trades.seasonId],
+    references: [seasons.id],
+  }),
+  rosterA: one(rosters, {
+    fields: [trades.rosterIdA],
+    references: [rosters.id],
+    relationName: "tradesAsA",
+  }),
+  rosterB: one(rosters, {
+    fields: [trades.rosterIdB],
+    references: [rosters.id],
+    relationName: "tradesAsB",
+  }),
+  players: many(tradePlayers),
+}));
+
+export const tradePlayersRelations = relations(tradePlayers, ({ one }) => ({
+  trade: one(trades, {
+    fields: [tradePlayers.tradeId],
+    references: [trades.id],
+  }),
+  player: one(players, {
+    fields: [tradePlayers.playerId],
+    references: [players.id],
+  }),
+  fromRoster: one(rosters, {
+    fields: [tradePlayers.fromRosterId],
+    references: [rosters.id],
+    relationName: "tradePlayersFrom",
+  }),
+  toRoster: one(rosters, {
+    fields: [tradePlayers.toRosterId],
+    references: [rosters.id],
+    relationName: "tradePlayersTo",
+  }),
+}));
 
 export const seasonsRelations = relations(seasons, ({ many }) => ({
   leagueSettings: many(leagueSettings),

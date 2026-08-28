@@ -1,14 +1,24 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { db } from "../../../db";
 import { marketSessions, marketMovements } from "../../../db/schema";
+import { createMarketSessionSchema, createMarketMovementSchema } from "../../../lib/schemas";
+import { parseJsonBody } from "../../../lib/validate";
 
-export async function GET() {
-  const sessions = await db.select().from(marketSessions);
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const seasonId = searchParams.get("seasonId");
+  const sessions = await db
+    .select()
+    .from(marketSessions)
+    .where(seasonId ? eq(marketSessions.seasonId, seasonId) : undefined);
   return NextResponse.json(sessions);
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const parsed = await parseJsonBody(request, createMarketSessionSchema);
+  if ("response" in parsed) return parsed.response;
+  const body = parsed.data;
 
   const insertedSession = await db
     .insert(marketSessions)
@@ -26,7 +36,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const body = await request.json();
+  const parsed = await parseJsonBody(request, createMarketMovementSchema);
+  if ("response" in parsed) return parsed.response;
+  const body = parsed.data;
   const insertedMovement = await db.insert(marketMovements).values({
     seasonId: body.seasonId,
     sessionId: body.sessionId ?? null,

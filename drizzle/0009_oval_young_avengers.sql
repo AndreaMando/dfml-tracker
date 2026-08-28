@@ -1,0 +1,1 @@
+ALTER TYPE "public"."market_session_type" ADD VALUE 'open_market';
