@@ -71,6 +71,7 @@ export default function ScoresPage() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [seasonId, setSeasonId] = useState("");
   const [matchdayNumber, setMatchdayNumber] = useState(1);
+  const [maxMatchday, setMaxMatchday] = useState(38);
   const [rosters, setRosters] = useState<Roster[]>([]);
 
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
@@ -103,6 +104,21 @@ export default function ScoresPage() {
     fetch("/api/rosters")
       .then((res) => res.json())
       .then((data: Roster[]) => setRosters(data.filter((r) => r.seasonId === seasonId)));
+  }, [seasonId]);
+
+  // Matchday selector: default to the current matchday (last one with played
+  // fixtures, same logic as the top ticker) and cap the dropdown at however
+  // many matchdays this season's calendar actually has.
+  useEffect(() => {
+    if (!seasonId) return;
+    fetch(`/api/fixtures?seasonId=${seasonId}`)
+      .then((res) => res.json())
+      .then((all: Fixture[]) => {
+        if (all.length === 0) return;
+        setMaxMatchday(Math.max(...all.map((f) => f.matchdayNumber)));
+        const played = all.filter((f) => f.status === "played").map((f) => f.matchdayNumber);
+        setMatchdayNumber(played.length > 0 ? Math.max(...played) : 1);
+      });
   }, [seasonId]);
 
   function loadFixtures() {
@@ -266,13 +282,17 @@ export default function ScoresPage() {
         </label>
         <label className="block space-y-2 text-sm text-ink">
           <span>{t("Matchday")}</span>
-          <input
-            type="number"
-            min={1}
+          <select
             value={matchdayNumber}
-            onChange={(event) => setMatchdayNumber(Number(event.target.value) || 1)}
+            onChange={(event) => setMatchdayNumber(Number(event.target.value))}
             className="w-28 rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
-          />
+          >
+            {Array.from({ length: maxMatchday }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 

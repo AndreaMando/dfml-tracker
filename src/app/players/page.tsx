@@ -23,7 +23,7 @@ type Player = {
   ownerParticipantName: string | null;
 };
 
-type Season = { id: string; name: string; status: string };
+type Season = { id: string; name: string; status: string; year: number };
 
 type PlayerStat = {
   playerId: string;
@@ -108,9 +108,11 @@ export default function PlayersPage() {
   const [sortDesc, setSortDesc] = useState(true);
 
   // Sync: fantaasta (listone) + Fantacalcio.it (voti giornata), fired together.
+  // fantacalcioSeason/fantacalcioMatchday (the external site's own identifiers)
+  // are derived from our own season/matchday — the two have never actually
+  // diverged, no reason to make the user enter the same matchday twice.
   const [matchdayNumber, setMatchdayNumber] = useState(1);
-  const [fantacalcioSeason, setFantacalcioSeason] = useState("2026-27");
-  const [fantacalcioMatchday, setFantacalcioMatchday] = useState(1);
+  const [maxMatchday, setMaxMatchday] = useState(38);
   const [syncingAll, setSyncingAll] = useState(false);
   const [fantaastaResult, setFantaastaResult] = useState<{
     created: number;
@@ -152,6 +154,28 @@ export default function PlayersPage() {
     loadStats();
   }, [seasonId]);
 
+  // Matchday selectors: default to the current matchday (last one with played
+  // fixtures, same logic as the top ticker) and cap the dropdowns at however
+  // many matchdays this season's calendar actually has.
+  useEffect(() => {
+    if (!seasonId) return;
+    fetch(`/api/fixtures?seasonId=${seasonId}`)
+      .then((res) => res.json())
+      .then((all: { matchdayNumber: number; status: string }[]) => {
+        if (all.length === 0) return;
+        setMaxMatchday(Math.max(...all.map((f) => f.matchdayNumber)));
+        const played = all.filter((f) => f.status === "played").map((f) => f.matchdayNumber);
+        const current = played.length > 0 ? Math.max(...played) : 1;
+        setMatchdayNumber(current);
+      });
+  }, [seasonId]);
+
+  // fantacalcio.it season string, e.g. season year 2026 -> "2026-27".
+  const activeSeason = seasons.find((s) => s.id === seasonId);
+  const fantacalcioSeason = activeSeason
+    ? `${activeSeason.year}-${String((activeSeason.year + 1) % 100).padStart(2, "0")}`
+    : "";
+
   async function handleSyncAll(event: React.FormEvent) {
     event.preventDefault();
     setSyncingAll(true);
@@ -165,7 +189,12 @@ export default function PlayersPage() {
       fetch("/api/scores/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seasonId, matchdayNumber, fantacalcioSeason, fantacalcioMatchday }),
+        body: JSON.stringify({
+          seasonId,
+          matchdayNumber,
+          fantacalcioSeason,
+          fantacalcioMatchday: matchdayNumber,
+        }),
       }),
     ]);
 
@@ -325,32 +354,17 @@ export default function PlayersPage() {
           </label>
           <label className="block space-y-2 text-sm text-ink">
             <span>{t("Matchday")}</span>
-            <input
-              type="number"
-              min={1}
+            <select
               value={matchdayNumber}
-              onChange={(event) => setMatchdayNumber(Number(event.target.value) || 1)}
+              onChange={(event) => setMatchdayNumber(Number(event.target.value))}
               className="w-24 rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
-            />
-          </label>
-          <label className="block space-y-2 text-sm text-ink">
-            <span>{t("Fantacalcio.it season")}</span>
-            <input
-              value={fantacalcioSeason}
-              onChange={(event) => setFantacalcioSeason(event.target.value)}
-              placeholder="2025-26"
-              className="w-32 rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
-            />
-          </label>
-          <label className="block space-y-2 text-sm text-ink">
-            <span>{t("Fantacalcio.it matchday")}</span>
-            <input
-              type="number"
-              min={1}
-              value={fantacalcioMatchday}
-              onChange={(event) => setFantacalcioMatchday(Number(event.target.value) || 1)}
-              className="w-28 rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
-            />
+            >
+              {Array.from({ length: maxMatchday }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </label>
           <button
             type="submit"

@@ -39,6 +39,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "Open module": "Apri modulo",
     "Open API": "Apri API",
     "Language": "Lingua",
+    "Menu": "Menu",
     "English": "Inglese",
     "Italian": "Italiano",
     "Overview of the current season": "Panoramica della stagione attuale",
