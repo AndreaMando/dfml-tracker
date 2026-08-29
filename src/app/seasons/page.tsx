@@ -15,6 +15,13 @@ type Season = {
   endDate: string | null;
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  active: "Season active",
+  finished: "Finished",
+  archived: "Season archived",
+};
+
 export default function SeasonsPage() {
   const { t } = useTranslation();
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -45,7 +52,7 @@ export default function SeasonsPage() {
                     <p className="mt-1 text-sm text-ink-muted">{season.year}</p>
                   </div>
                   <span className="rounded-full border border-azure/20 bg-azure-soft px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-azure-deep">
-                    {season.status}
+                    {t(STATUS_LABELS[season.status] ?? season.status)}
                   </span>
                 </div>
                 {season.startDate && season.endDate && (
@@ -55,6 +62,14 @@ export default function SeasonsPage() {
                       {season.startDate.slice(0, 4)} → {season.endDate.slice(0, 4)}
                     </strong>
                   </div>
+                )}
+                {season.status === "active" && (
+                  <Link
+                    href="/history"
+                    className="mt-4 inline-flex text-sm font-medium text-azure transition hover:text-azure-deep"
+                  >
+                    {t("Close season")} →
+                  </Link>
                 )}
               </article>
             ))}

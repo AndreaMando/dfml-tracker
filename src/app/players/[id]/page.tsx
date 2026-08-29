@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModuleShell } from "../../../components/module-shell";
-import { PageHeader } from "../../../components/page-header";
 import { useTranslation } from "../../../lib/i18n";
 
 type Player = {
@@ -103,30 +102,28 @@ export default function PlayerDetailPage() {
   }
 
   return (
-    <ModuleShell title={player.fullName} description={t("Player detail")}>
-      <PageHeader title={player.fullName} subtitle={`${t(player.position)} • ${player.teamName ?? "—"}`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] ${roleStyles[player.position]}`}
-          >
-            {t(player.position)}
+    <ModuleShell title={player.fullName} description={`${t(player.position)} • ${player.teamName ?? "—"}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] ${roleStyles[player.position]}`}
+        >
+          {t(player.position)}
+        </span>
+        {player.status === "transferred" && (
+          <span className="rounded-full bg-ink/80 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white">
+            {t("Transferred")}
           </span>
-          {player.status === "transferred" && (
-            <span className="rounded-full bg-ink/80 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white">
-              {t("Transferred")}
-            </span>
-          )}
-          {player.ownerRosterName && (
-            <Link
-              href={`/rosters/${player.ownerRosterId}`}
-              className="inline-flex items-center gap-1 rounded-full border border-azure/20 bg-azure-soft px-3 py-1 text-xs font-medium text-azure-deep transition hover:bg-azure/10"
-            >
-              {t("Owned by")} {player.ownerRosterName}
-              {player.ownerParticipantName ? ` (${player.ownerParticipantName})` : ""}
-            </Link>
-          )}
-        </div>
-      </PageHeader>
+        )}
+        {player.ownerRosterName && (
+          <Link
+            href={`/rosters/${player.ownerRosterId}`}
+            className="inline-flex items-center gap-1 rounded-full border border-azure/20 bg-azure-soft px-3 py-1 text-xs font-medium text-azure-deep transition hover:bg-azure/10"
+          >
+            {t("Owned by")} {player.ownerRosterName}
+            {player.ownerParticipantName ? ` (${player.ownerParticipantName})` : ""}
+          </Link>
+        )}
+      </div>
 
       <div className="mt-6 space-y-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">

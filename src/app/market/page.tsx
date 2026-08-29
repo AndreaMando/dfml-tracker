@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
 import { SectionCard } from "../../components/section-card";
@@ -40,10 +41,15 @@ function sessionStatus(session: MarketSession): "ongoing" | "scheduled" | "ended
   return "ongoing";
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  ongoing: "border border-emerald-200 bg-emerald-50 text-emerald-700",
-  scheduled: "border border-azure/20 bg-azure-soft text-azure-deep",
-  ended: "border border-line bg-surface-alt text-ink-muted",
+const STATUS_DOT: Record<string, string> = {
+  ongoing: "bg-emerald-500",
+  scheduled: "bg-azure",
+  ended: "bg-line",
+};
+const STATUS_TEXT: Record<string, string> = {
+  ongoing: "text-emerald-700",
+  scheduled: "text-azure-deep",
+  ended: "text-ink-muted",
 };
 
 function toDateInputValue(iso: string | null): string {
@@ -59,7 +65,7 @@ export default function MarketPage() {
   const [loading, setLoading] = useState(true);
 
   const [newType, setNewType] = useState<SessionType>("initial_auction");
-  const [newLabel, setNewLabel] = useState(DEFAULT_LABELS.initial_auction);
+  const [newLabel, setNewLabel] = useState("");
   const [newStart, setNewStart] = useState("");
   const [newEnd, setNewEnd] = useState("");
   const [saving, setSaving] = useState(false);
@@ -99,11 +105,12 @@ export default function MarketPage() {
       body: JSON.stringify({
         seasonId,
         type: newType,
-        label: newLabel,
+        label: newLabel.trim() || DEFAULT_LABELS[newType],
         startDate: newStart || null,
         endDate: newEnd || null,
       }),
     });
+    setNewLabel("");
     setNewStart("");
     setNewEnd("");
     loadSessions();
@@ -193,15 +200,18 @@ export default function MarketPage() {
                       onBlur={(event) => handleDateBlur(session.id, "endDate", event.target.value)}
                       className="rounded-xl border border-line bg-surface-alt px-3 py-2 text-sm text-ink outline-none focus:border-azure"
                     />
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] ${STATUS_STYLES[status]}`}>
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] ${STATUS_TEXT[status]}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[status]}`} />
                       {t(status)}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleDelete(session.id)}
-                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                      title={t("Remove")}
+                      aria-label={t("Remove")}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-ink-muted transition hover:bg-red-50 hover:text-red-600"
                     >
-                      {t("Remove")}
+                      <X size={15} />
                     </button>
                   </div>
                 </div>
@@ -216,11 +226,7 @@ export default function MarketPage() {
             <span>{t("Type")}</span>
             <select
               value={newType}
-              onChange={(event) => {
-                const type = event.target.value as SessionType;
-                setNewType(type);
-                setNewLabel(DEFAULT_LABELS[type]);
-              }}
+              onChange={(event) => setNewType(event.target.value as SessionType)}
               className="rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
             >
               <option value="initial_auction">{t(TYPE_LABELS.initial_auction)}</option>
@@ -234,6 +240,7 @@ export default function MarketPage() {
             <input
               value={newLabel}
               onChange={(event) => setNewLabel(event.target.value)}
+              placeholder={DEFAULT_LABELS[newType]}
               className="rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
             />
           </label>

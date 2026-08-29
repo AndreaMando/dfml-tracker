@@ -336,14 +336,13 @@ export default function ScoresPage() {
           {fixtures.map((fixture) => (
             <div
               key={fixture.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"
+              className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="flex flex-1 items-center justify-center gap-3">
-                <span className="flex-1 text-right text-sm font-semibold text-ink">
-                  {fixture.homeName ?? "—"}
-                </span>
-
-                <div className="flex flex-col items-center">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:flex-1">
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <span className="flex min-h-20 items-center break-words text-sm font-semibold text-ink">
+                    {fixture.homeName ?? "—"}
+                  </span>
                   <input
                     key={`gh-${fixture.id}-${fixture.goalsHome}`}
                     type="number"
@@ -361,9 +360,12 @@ export default function ScoresPage() {
                   />
                 </div>
 
-                <span className="text-ink-muted">—</span>
+                <span className="pt-20 text-ink-muted">—</span>
 
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <span className="flex min-h-20 items-center break-words text-sm font-semibold text-ink">
+                    {fixture.awayName ?? "—"}
+                  </span>
                   <input
                     key={`ga-${fixture.id}-${fixture.goalsAway}`}
                     type="number"
@@ -380,13 +382,9 @@ export default function ScoresPage() {
                     className="w-12 rounded-lg bg-transparent text-center text-xs text-ink-muted outline-none focus:bg-surface-alt"
                   />
                 </div>
-
-                <span className="flex-1 text-left text-sm font-semibold text-ink">
-                  {fixture.awayName ?? "—"}
-                </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-2 sm:justify-end">
                 <span
                   title={t(fixture.status)}
                   className={`flex h-8 w-8 items-center justify-center rounded-full ${

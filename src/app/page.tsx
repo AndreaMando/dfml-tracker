@@ -69,7 +69,7 @@ export default function Home() {
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--azure)]">
               {t("DFML Tracker")}
             </p>
-            <h1 className="mt-2 font-display text-2xl font-semibold text-[var(--ink)] md:text-3xl">
+            <h1 className="mt-2 font-display text-xl font-semibold text-[var(--ink)] md:text-3xl">
               {t("Companion dashboard for seasons, rosters and matchday flow.")}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-[var(--ink-muted)]">
@@ -96,7 +96,7 @@ export default function Home() {
         </div>
       </SectionCard>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {endpoints.map((endpoint) => {
           const Icon = endpoint.icon;
           return (

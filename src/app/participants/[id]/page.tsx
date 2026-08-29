@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModuleShell } from "../../../components/module-shell";
-import { PageHeader } from "../../../components/page-header";
 import { useTranslation } from "../../../lib/i18n";
 
 type Roster = { id: string; name: string | null; creditsRemaining: string | null };
@@ -79,12 +78,7 @@ export default function ParticipantDetailPage() {
   }
 
   return (
-    <ModuleShell title={participant.displayName} description={t("Participant detail")}>
-      <PageHeader
-        title={participant.displayName}
-        subtitle={participant.teamName ?? "—"}
-      />
-
+    <ModuleShell title={participant.displayName} description={participant.teamName ?? t("Participant detail")}>
       <div className="mt-6 space-y-6">
         <div className="rounded-3xl border border-line bg-surface p-5">
           <h3 className="text-base font-semibold text-ink">{t("Rosters")}</h3>

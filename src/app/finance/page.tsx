@@ -127,7 +127,7 @@ export default function FinancePage() {
         </select>
       </label>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <article className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
           <p className="text-sm text-ink-muted">{t("Registration fee")}</p>
           <h2 className="mt-2 text-2xl font-bold text-ink">40 €</h2>
@@ -170,7 +170,11 @@ export default function FinancePage() {
                   return (
                     <tr key={p.id} className="border-t border-line">
                       <td className="px-4 py-2 font-medium">{p.displayName}</td>
-                      <td className="px-4 py-2 font-semibold text-rose-600">
+                      <td
+                        className={`px-4 py-2 font-semibold ${
+                          bucket?.total ? "text-rose-600" : "text-ink-muted"
+                        }`}
+                      >
                         {(bucket?.total ?? 0).toFixed(2)} €
                       </td>
                       <td className="px-4 py-2 text-xs text-ink-muted">

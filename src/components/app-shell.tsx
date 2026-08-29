@@ -50,9 +50,9 @@ function Ticker({ matchday, seasonLabel, participantsCount, marketOpen }: Ticker
 
   return (
     <div className="w-full bg-[var(--azure-deep)] text-white">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 font-mono-data text-xs uppercase tracking-[0.18em] lg:px-6">
+      <div className="mx-auto flex max-w-7xl items-center gap-x-2.5 overflow-x-auto whitespace-nowrap px-4 py-2 font-mono-data text-[11px] uppercase tracking-wide sm:text-xs sm:tracking-[0.18em] lg:px-6">
         {items.map((item, i) => (
-          <span key={item} className="flex items-center gap-3">
+          <span key={item} className="flex shrink-0 items-center gap-2.5">
             {item}
             {i < items.length - 1 && <span className="text-white/30">·</span>}
           </span>
@@ -122,7 +122,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row lg:px-6">
         <aside className="w-full shrink-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 lg:w-64">
           <div className="flex items-center justify-between gap-3">
-            <div className="w-40 lg:w-full">
+            <div className="hidden w-full lg:block">
               <Image
                 src="/dfml-lockup.png"
                 alt=""
@@ -133,6 +133,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 priority
               />
             </div>
+            <span className="font-display text-lg font-extrabold tracking-tight text-[var(--azure-deep)] lg:hidden">
+              DFML
+            </span>
             <button
               type="button"
               onClick={() => setMobileNavOpen((open) => !open)}

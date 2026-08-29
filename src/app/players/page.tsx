@@ -253,6 +253,9 @@ export default function PlayersPage() {
     });
   }, [players, activePosition, showTransferred, teamFilter, gridSearch]);
 
+  const STATS_PAGE_SIZE = 20;
+  const [statsPage, setStatsPage] = useState(0);
+
   const statRows = useMemo(() => {
     const filtered = stats.filter((s) => {
       if (!showTransferred && (s.status === "transferred" || !s.teamName)) return false;
@@ -269,6 +272,17 @@ export default function PlayersPage() {
       return sortDesc ? -diff : diff;
     });
   }, [stats, activePosition, showTransferred, statsSearch, sortKey, sortDesc]);
+
+  const statsPageCount = Math.max(1, Math.ceil(statRows.length / STATS_PAGE_SIZE));
+  const statsPageClamped = Math.min(statsPage, statsPageCount - 1);
+  const pagedStatRows = statRows.slice(
+    statsPageClamped * STATS_PAGE_SIZE,
+    statsPageClamped * STATS_PAGE_SIZE + STATS_PAGE_SIZE
+  );
+
+  useEffect(() => {
+    setStatsPage(0);
+  }, [activePosition, showTransferred, statsSearch, sortKey, sortDesc]);
 
   function SortHeader({
     label,
@@ -510,6 +524,7 @@ export default function PlayersPage() {
             {statsLoading ? (
               <p className="text-sm text-ink-muted">{t("Loading")}...</p>
             ) : (
+              <>
               <div className="overflow-x-auto rounded-2xl border border-line">
                 <table className="min-w-full text-sm text-ink">
                   <thead className="bg-surface-alt text-xs uppercase tracking-wide text-ink-muted">
@@ -553,7 +568,7 @@ export default function PlayersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {statRows.map((row) => (
+                    {pagedStatRows.map((row) => (
                       <tr key={row.playerId} className="border-t border-line">
                         <td className="whitespace-nowrap px-3 py-2">
                           <Link href={`/players/${row.playerId}`} className="flex items-center gap-2 hover:underline">
@@ -590,6 +605,38 @@ export default function PlayersPage() {
                   </tbody>
                 </table>
               </div>
+
+              {statRows.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-ink-muted">
+                  <span>
+                    {statsPageClamped * STATS_PAGE_SIZE + 1}–
+                    {Math.min(statRows.length, (statsPageClamped + 1) * STATS_PAGE_SIZE)} {t("of")}{" "}
+                    {statRows.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStatsPage((p) => Math.max(0, p - 1))}
+                      disabled={statsPageClamped === 0}
+                      className="rounded-xl border border-line bg-surface-alt px-3 py-1.5 text-sm text-ink transition hover:border-azure/40 disabled:opacity-40"
+                    >
+                      {t("Previous")}
+                    </button>
+                    <span className="font-mono-data">
+                      {statsPageClamped + 1} / {statsPageCount}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStatsPage((p) => Math.min(statsPageCount - 1, p + 1))}
+                      disabled={statsPageClamped >= statsPageCount - 1}
+                      className="rounded-xl border border-line bg-surface-alt px-3 py-1.5 text-sm text-ink transition hover:border-azure/40 disabled:opacity-40"
+                    >
+                      {t("Next")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </div>
         )}
