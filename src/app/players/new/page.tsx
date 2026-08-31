@@ -29,7 +29,12 @@ export default function PlayerCreatePage() {
   }
 
   return (
-    <ModuleShell title={t("Add player")} description={t("Add a player not present in the imported list.")}>
+    <ModuleShell
+      title={t("Add player")}
+      description={t("Add a player not present in the imported list.")}
+      backHref="/players"
+      backLabel={t("Back to players")}
+    >
       <PageHeader title={t("New player")} subtitle={t("Add a player not present in the imported list.")} />
       <form className="mt-6 grid gap-5 rounded-3xl border border-line bg-surface p-6" onSubmit={handleSubmit}>
         <label className="block space-y-2 text-sm text-ink">

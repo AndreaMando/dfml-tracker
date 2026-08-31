@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, X } from "lucide-react";
 import { ModuleShell } from "../../components/module-shell";
 import { SectionCard } from "../../components/section-card";
+import { RoleBadge } from "../../components/role-badge";
 import { useTranslation } from "../../lib/i18n";
 
 type Season = { id: string; name: string; status: string };
@@ -26,6 +27,32 @@ type CompositionRow = {
   fullName: string;
   position: "GK" | "DF" | "MF" | "FW";
 };
+type LineupPlayerRow = {
+  playerId: string;
+  fullName: string;
+  position: "GK" | "DF" | "MF" | "FW";
+  playedNoVote: boolean;
+  vote: string | null;
+  score: string | null;
+};
+
+function VoteCell({ p, t }: { p: LineupPlayerRow; t: (key: string) => string }) {
+  if (p.vote) {
+    return (
+      <>
+        {p.vote} {p.score && <span className="font-semibold text-azure-deep">({p.score})</span>}
+      </>
+    );
+  }
+  return <>{p.playedNoVote ? t("s.v.") : "—"}</>;
+}
+type Lineup = {
+  rosterId: string;
+  rosterName: string | null;
+  formation: string | null;
+  starters: LineupPlayerRow[];
+  bench: LineupPlayerRow[];
+};
 type RosterDetail = { id: string; players: CompositionRow[] };
 type ScoreRow = {
   id: string;
@@ -41,6 +68,74 @@ type ScoreRow = {
   penaltiesMissed: number | null;
   ownGoals: number | null;
 };
+
+const roleOrder: Record<LineupPlayerRow["position"], number> = { GK: 0, DF: 1, MF: 2, FW: 3 };
+function byRole(a: LineupPlayerRow, b: LineupPlayerRow) {
+  return roleOrder[a.position] - roleOrder[b.position];
+}
+
+function LineupPanel({
+  lineup,
+  fallbackName,
+  t,
+}: {
+  lineup: Lineup | undefined;
+  fallbackName: string | null;
+  t: (key: string) => string;
+}) {
+  if (!lineup) {
+    return (
+      <div className="rounded-xl border border-line bg-surface-alt p-3 text-sm text-ink-muted">
+        <p className="font-semibold text-ink">{fallbackName ?? "—"}</p>
+        <p className="mt-1">{t("No lineup submitted yet.")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-line bg-surface-alt p-3">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold text-ink">{lineup.rosterName ?? fallbackName ?? "—"}</p>
+        {lineup.formation && (
+          <span className="rounded-full bg-azure-soft px-2 py-0.5 text-[11px] font-bold text-azure-deep">
+            {lineup.formation}
+          </span>
+        )}
+      </div>
+      <ul className="mt-2 space-y-1">
+        {[...lineup.starters].sort(byRole).map((p) => (
+          <li key={p.playerId} className="flex items-center justify-between gap-2 text-sm">
+            <span className="flex items-center gap-1.5 text-ink">
+              <RoleBadge position={p.position} t={t} />
+              {p.fullName}
+            </span>
+            <span className="font-mono-data text-ink-muted">
+              <VoteCell p={p} t={t} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      {lineup.bench.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-xs text-ink-muted">{t("Bench")}</summary>
+          <ul className="mt-1 space-y-1">
+            {[...lineup.bench].sort(byRole).map((p) => (
+              <li key={p.playerId} className="flex items-center justify-between gap-2 text-xs text-ink-muted">
+                <span className="flex items-center gap-1.5">
+                  <RoleBadge position={p.position} t={t} size="sm" />
+                  {p.fullName}
+                </span>
+                <span className="font-mono-data">
+                  <VoteCell p={p} t={t} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
 
 type PlayerFormState = {
   vote: string;
@@ -89,6 +184,9 @@ export default function ScoresPage() {
   const [syncResult, setSyncResult] = useState<{ updated: number; notMatched: string[] } | null>(null);
   const [syncError, setSyncError] = useState("");
 
+  const [lineups, setLineups] = useState<Lineup[]>([]);
+  const [openLineupFixtureId, setOpenLineupFixtureId] = useState("");
+
   useEffect(() => {
     fetch("/api/seasons")
       .then((res) => res.json())
@@ -106,18 +204,17 @@ export default function ScoresPage() {
       .then((data: Roster[]) => setRosters(data.filter((r) => r.seasonId === seasonId)));
   }, [seasonId]);
 
-  // Matchday selector: default to the current matchday (last one with played
-  // fixtures, same logic as the top ticker) and cap the dropdown at however
-  // many matchdays this season's calendar actually has.
+  // Matchday selector: default to the current matchday (same logic as the
+  // top ticker — last played, or the next one if its lineups are already
+  // locked) and cap the dropdown at however many matchdays this season's
+  // calendar actually has.
   useEffect(() => {
     if (!seasonId) return;
-    fetch(`/api/fixtures?seasonId=${seasonId}`)
+    fetch(`/api/fixtures/current-matchday?seasonId=${seasonId}`)
       .then((res) => res.json())
-      .then((all: Fixture[]) => {
-        if (all.length === 0) return;
-        setMaxMatchday(Math.max(...all.map((f) => f.matchdayNumber)));
-        const played = all.filter((f) => f.status === "played").map((f) => f.matchdayNumber);
-        setMatchdayNumber(played.length > 0 ? Math.max(...played) : 1);
+      .then((data: { matchday: number; maxMatchday: number }) => {
+        setMaxMatchday(data.maxMatchday);
+        setMatchdayNumber(data.matchday);
       });
   }, [seasonId]);
 
@@ -129,6 +226,30 @@ export default function ScoresPage() {
   }
 
   useEffect(loadFixtures, [seasonId, matchdayNumber]);
+
+  function loadLineups() {
+    if (!seasonId) return;
+    fetch(`/api/lineups?seasonId=${seasonId}&matchdayNumber=${matchdayNumber}`)
+      .then((res) => res.json())
+      .then(setLineups);
+  }
+
+  // "Voti in live": re-sync formations + fantacalcio.it's own live fantavoto
+  // for the current matchday every time the page loads, no manual button.
+  // Cheap (a handful of requests, see sync-lineups route), never blocks the
+  // page — fixtures/lineups already show whatever's in the DB, this just
+  // refreshes it in the background.
+  useEffect(() => {
+    if (!seasonId || !matchdayNumber) return;
+    loadLineups();
+    fetch("/api/scores/sync-lineups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seasonId, matchdayNumber }),
+    })
+      .then(() => loadLineups())
+      .catch(() => null);
+  }, [seasonId, matchdayNumber]);
 
   async function handleCreateFixture(event: React.FormEvent) {
     event.preventDefault();
@@ -334,10 +455,8 @@ export default function ScoresPage() {
       <SectionCard title={t("Fixtures")} description={t("Matches for this matchday.")}>
         <div className="space-y-3">
           {fixtures.map((fixture) => (
-            <div
-              key={fixture.id}
-              className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
+            <div key={fixture.id} className="rounded-2xl border border-line bg-surface p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:flex-1">
                 <div className="flex flex-col items-center gap-1 text-center">
                   <span className="flex min-h-20 items-center break-words text-sm font-semibold text-ink">
@@ -405,6 +524,32 @@ export default function ScoresPage() {
                   <X size={16} />
                 </button>
               </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setOpenLineupFixtureId((current) => (current === fixture.id ? "" : fixture.id))
+              }
+              className="mt-3 text-xs font-semibold text-azure transition hover:text-azure-deep"
+            >
+              {openLineupFixtureId === fixture.id ? t("Hide lineups") : t("Show lineups")}
+            </button>
+
+            {openLineupFixtureId === fixture.id && (
+              <div className="mt-3 grid gap-4 border-t border-line pt-3 sm:grid-cols-2">
+                <LineupPanel
+                  lineup={lineups.find((l) => l.rosterId === fixture.rosterIdHome)}
+                  fallbackName={fixture.homeName}
+                  t={t}
+                />
+                <LineupPanel
+                  lineup={lineups.find((l) => l.rosterId === fixture.rosterIdAway)}
+                  fallbackName={fixture.awayName}
+                  t={t}
+                />
+              </div>
+            )}
             </div>
           ))}
           {fixtures.length === 0 && <p className="text-sm text-ink-muted">{t("No data yet")}</p>}

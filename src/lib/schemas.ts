@@ -204,6 +204,10 @@ export const createScoreSchema = z.object({
   ...scoreFields,
 });
 export const updateScoreSchema = z.object(scoreFields);
+export const syncLineupsSchema = z.object({
+  seasonId: uuidSchema,
+  matchdayNumber: intSchema,
+});
 export const importScoresSchema = z.object({
   seasonId: uuidSchema,
   matchdayNumber: intSchema,

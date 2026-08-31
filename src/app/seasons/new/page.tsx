@@ -12,7 +12,12 @@ export default function SeasonCreatePage() {
   const [status, setStatus] = useState("draft");
 
   return (
-    <ModuleShell title={t("Create Season")} description={t("Add a new league season to the tracker.")}>
+    <ModuleShell
+      title={t("Create Season")}
+      description={t("Add a new league season to the tracker.")}
+      backHref="/seasons"
+      backLabel={t("Back to seasons")}
+    >
       <PageHeader title={t("New season")} subtitle={t("Create a season and configure the league timeline.")} />
       <form className="mt-6 grid gap-5 rounded-3xl border border-line bg-surface p-6" onSubmit={(ev) => ev.preventDefault()}>
         <label className="block space-y-2 text-sm text-ink">

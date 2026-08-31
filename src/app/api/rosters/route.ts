@@ -11,7 +11,10 @@ export async function GET() {
       id: rosters.id,
       seasonId: rosters.seasonId,
       participantId: rosters.participantId,
-      name: rosters.name,
+      // The fantasy team name is set on the Participants page (teamName) —
+      // that's the single source of truth everywhere it's displayed.
+      // rosters.name is legacy and only a last-resort fallback.
+      name: sqlOp<string | null>`coalesce(${participants.teamName}, ${participants.displayName}, ${rosters.name})`,
       creditsRemaining: rosters.creditsRemaining,
       createdAt: rosters.createdAt,
       participantName: participants.displayName,
@@ -24,7 +27,7 @@ export async function GET() {
       rosterPlayers,
       eq(rosterPlayers.rosterId, rosters.id)
     )
-    .groupBy(rosters.id, participants.displayName, participants.isActive);
+    .groupBy(rosters.id, participants.displayName, participants.teamName, participants.isActive);
 
   return NextResponse.json(rows);
 }

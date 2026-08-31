@@ -56,7 +56,12 @@ export default function ParticipantCreatePage() {
   }
 
   return (
-    <ModuleShell title={t("Create Participant")} description={t("Add a new league participant.")}>
+    <ModuleShell
+      title={t("Create Participant")}
+      description={t("Add a new league participant.")}
+      backHref="/participants"
+      backLabel={t("Back to participants")}
+    >
       <PageHeader title={t("New participant")} subtitle={t("Create a participant and assign initial budget.")} />
       <form className="mt-6 grid gap-5 rounded-3xl border border-line bg-surface p-6" onSubmit={handleSubmit}>
         <label className="block space-y-2 text-sm text-ink">

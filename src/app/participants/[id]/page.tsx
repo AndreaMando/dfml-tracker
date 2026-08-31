@@ -63,7 +63,7 @@ export default function ParticipantDetailPage() {
 
   if (loading) {
     return (
-      <ModuleShell title={t("Participants")} description="">
+      <ModuleShell title={t("Participants")} description="" backHref="/participants" backLabel={t("Back to participants")}>
         <p className="text-sm text-ink-muted">{t("Loading")}...</p>
       </ModuleShell>
     );
@@ -71,14 +71,19 @@ export default function ParticipantDetailPage() {
 
   if (!participant) {
     return (
-      <ModuleShell title={t("Participants")} description="">
+      <ModuleShell title={t("Participants")} description="" backHref="/participants" backLabel={t("Back to participants")}>
         <p className="text-sm text-ink-muted">{t("Participant not found")}</p>
       </ModuleShell>
     );
   }
 
   return (
-    <ModuleShell title={participant.displayName} description={participant.teamName ?? t("Participant detail")}>
+    <ModuleShell
+      title={participant.displayName}
+      description={participant.teamName ?? t("Participant detail")}
+      backHref="/participants"
+      backLabel={t("Back to participants")}
+    >
       <div className="mt-6 space-y-6">
         <div className="rounded-3xl border border-line bg-surface p-5">
           <h3 className="text-base font-semibold text-ink">{t("Rosters")}</h3>

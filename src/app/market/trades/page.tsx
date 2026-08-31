@@ -209,7 +209,12 @@ export default function TradesPage() {
   }
 
   return (
-    <ModuleShell title={t("Trades")} description={t("Record a trade between two fantasy teams.")}>
+    <ModuleShell
+      title={t("Trades")}
+      description={t("Record a trade between two fantasy teams.")}
+      backHref="/market"
+      backLabel={t("Back to market")}
+    >
       <div className="flex flex-col gap-4 lg:flex-row">
         <TeamColumn
           label={t("Team A")}

@@ -11,11 +11,16 @@ export async function GET(
 ) {
   const { id } = await params;
   const rows = await db.select().from(participants).where(eq(participants.id, id));
-  if (!rows[0]) {
+  const participant = rows[0];
+  if (!participant) {
     return NextResponse.json({ error: "Participant not found" }, { status: 404 });
   }
   const rosterRows = await db.select().from(rosters).where(eq(rosters.participantId, id));
-  return NextResponse.json({ ...rows[0], rosters: rosterRows });
+  // The fantasy team name is set on this same participant (teamName) — that's
+  // the single source of truth everywhere it's displayed, not rosters.name.
+  const teamName = participant.teamName || participant.displayName;
+  const rostersWithTeamName = rosterRows.map((r) => ({ ...r, name: teamName }));
+  return NextResponse.json({ ...participant, rosters: rostersWithTeamName });
 }
 
 export async function PATCH(
@@ -40,6 +45,7 @@ export async function PATCH(
   if (!updated[0]) {
     return NextResponse.json({ error: "Participant not found" }, { status: 404 });
   }
+
   return NextResponse.json(updated[0]);
 }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql as sqlOp } from "drizzle-orm";
 import { db } from "../../../../db";
-import { participants, players, rosterPlayers, rosters } from "../../../../db/schema";
+import { matchdayScores, participants, players, rosterPlayers, rosters } from "../../../../db/schema";
 import { updatePlayerSchema } from "../../../../lib/schemas";
 import { parseJsonBody } from "../../../../lib/validate";
 
@@ -26,7 +26,7 @@ export async function GET(
       imageUrl: players.imageUrl,
       createdAt: players.createdAt,
       ownerRosterId: rosters.id,
-      ownerRosterName: rosters.name,
+      ownerRosterName: sqlOp<string | null>`coalesce(${participants.teamName}, ${participants.displayName}, ${rosters.name})`,
       ownerParticipantName: participants.displayName,
     })
     .from(players)
@@ -37,7 +37,24 @@ export async function GET(
   if (!rows[0]) {
     return NextResponse.json({ error: "Player not found" }, { status: 404 });
   }
-  return NextResponse.json(rows[0]);
+
+  // Career totals across every matchday this player has an entered score
+  // for, same fields the Player Stats table aggregates per season.
+  const [stats] = await db
+    .select({
+      appearances: sqlOp<number>`count(${matchdayScores.id})`.mapWith(Number),
+      goals: sqlOp<number>`coalesce(sum(${matchdayScores.goals}), 0)`.mapWith(Number),
+      assists: sqlOp<number>`coalesce(sum(${matchdayScores.assists}), 0)`.mapWith(Number),
+      yellowCards: sqlOp<number>`coalesce(sum(${matchdayScores.yellowCards}), 0)`.mapWith(Number),
+      redCards: sqlOp<number>`coalesce(sum(${matchdayScores.redCards}), 0)`.mapWith(Number),
+      cleanSheets: sqlOp<number>`coalesce(sum(case when ${matchdayScores.cleanSheet} then 1 else 0 end), 0)`.mapWith(
+        Number
+      ),
+    })
+    .from(matchdayScores)
+    .where(eq(matchdayScores.playerId, id));
+
+  return NextResponse.json({ ...rows[0], stats });
 }
 
 export async function PATCH(

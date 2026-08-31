@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql as sqlOp } from "drizzle-orm";
 import { db } from "../../../db";
 import { participants, players, rosterPlayers, rosters } from "../../../db/schema";
 import { createPlayerSchema } from "../../../lib/schemas";
@@ -22,7 +22,9 @@ export async function GET() {
       imageUrl: players.imageUrl,
       createdAt: players.createdAt,
       ownerRosterId: rosters.id,
-      ownerRosterName: rosters.name,
+      // The fantasy team name is set on the Participants page (teamName) —
+      // that's the single source of truth everywhere it's displayed.
+      ownerRosterName: sqlOp<string | null>`coalesce(${participants.teamName}, ${participants.displayName}, ${rosters.name})`,
       ownerParticipantName: participants.displayName,
     })
     .from(players)

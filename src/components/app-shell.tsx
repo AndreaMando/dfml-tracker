@@ -83,20 +83,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         const active = seasons.find((s) => s.status === "active") ?? seasons[0];
         if (!active) return;
 
-        const [participants, fixtures, marketSessions] = await Promise.all([
+        const [participants, currentMatchday, marketSessions] = await Promise.all([
           fetch("/api/participants")
             .then((res) => res.json())
             .then((rows: { seasonId: string }[]) => rows.filter((r) => r.seasonId === active.id)),
-          fetch(`/api/fixtures?seasonId=${active.id}`).then((res) => res.json()) as Promise<
-            { matchdayNumber: number; status: string }[]
-          >,
+          fetch(`/api/fixtures/current-matchday?seasonId=${active.id}`).then((res) => res.json()) as Promise<{
+            matchday: number;
+          }>,
           fetch(`/api/market?seasonId=${active.id}`).then((res) => res.json()) as Promise<
             { startDate: string | null; endDate: string | null }[]
           >,
         ]);
 
-        const playedMatchdays = fixtures.filter((f) => f.status === "played").map((f) => f.matchdayNumber);
-        const matchday = playedMatchdays.length > 0 ? Math.max(...playedMatchdays) : 1;
+        const matchday = currentMatchday.matchday;
 
         const now = Date.now();
         const marketOpen = marketSessions.some((s) => {

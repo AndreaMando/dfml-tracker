@@ -7,7 +7,7 @@ import { PageHeader } from "../../../components/page-header";
 import { useTranslation } from "../../../lib/i18n";
 
 type Season = { id: string; name: string; status: string };
-type Participant = { id: string; seasonId: string; displayName: string };
+type Participant = { id: string; seasonId: string; displayName: string; teamName: string | null };
 
 export default function RosterCreatePage() {
   const { t } = useTranslation();
@@ -17,7 +17,6 @@ export default function RosterCreatePage() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [seasonId, setSeasonId] = useState("");
   const [participantId, setParticipantId] = useState("");
-  const [name, setName] = useState("");
   const [credits, setCredits] = useState(500);
   const [saving, setSaving] = useState(false);
 
@@ -38,10 +37,11 @@ export default function RosterCreatePage() {
     [participants, seasonId]
   );
 
+  const selectedParticipant = availableParticipants.find((p) => p.id === participantId);
+
   useEffect(() => {
     if (availableParticipants[0]) {
       setParticipantId(availableParticipants[0].id);
-      if (!name) setName(availableParticipants[0].displayName);
     }
   }, [availableParticipants]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -55,7 +55,6 @@ export default function RosterCreatePage() {
       body: JSON.stringify({
         seasonId,
         participantId,
-        name,
         creditsRemaining: credits,
       }),
     });
@@ -65,7 +64,12 @@ export default function RosterCreatePage() {
   }
 
   return (
-    <ModuleShell title={t("Create Roster")} description={t("Build a new roster for the season.")}>
+    <ModuleShell
+      title={t("Create Roster")}
+      description={t("Build a new roster for the season.")}
+      backHref="/rosters"
+      backLabel={t("Back to rosters")}
+    >
       <PageHeader title={t("New roster")} subtitle={t("Create the roster and define starting budget.")} />
       <form className="mt-6 grid gap-5 rounded-3xl border border-line bg-surface p-6" onSubmit={handleSubmit}>
         <label className="block space-y-2 text-sm text-ink">
@@ -98,15 +102,15 @@ export default function RosterCreatePage() {
           </select>
         </label>
 
-        <label className="block space-y-2 text-sm text-ink">
-          <span>{t("Roster name")}</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
-            placeholder={t("North Stars")}
-          />
-        </label>
+        {selectedParticipant && (
+          <p className="rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink-muted">
+            {t("Team name")}:{" "}
+            <strong className="text-ink">
+              {selectedParticipant.teamName || selectedParticipant.displayName}
+            </strong>{" "}
+            <span className="text-xs">({t("set on the Participants page")})</span>
+          </p>
+        )}
 
         <label className="block space-y-2 text-sm text-ink">
           <span>{t("Budget")}</span>

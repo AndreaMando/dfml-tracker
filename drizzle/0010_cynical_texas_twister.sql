@@ -1,0 +1,1 @@
+ALTER TABLE "lineup_players" ADD COLUMN "played_no_vote" boolean DEFAULT false NOT NULL;

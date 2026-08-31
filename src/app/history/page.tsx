@@ -107,21 +107,27 @@ function computeAwards(stats: PlayerStat[]) {
 
 function MatchRow({ fixture }: { fixture: Fixture }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface-alt px-4 py-3">
-      <div className="flex flex-1 items-center justify-center gap-3">
-        <span className="flex-1 text-right text-sm font-medium text-ink">{fixture.homeName ?? "—"}</span>
-        <div className="flex flex-col items-center">
+    <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-alt px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:flex-1">
+        <div className="flex flex-col items-center gap-1 text-center">
+          <span className="flex min-h-20 items-center break-words text-sm font-medium text-ink">
+            {fixture.homeName ?? "—"}
+          </span>
           <span className="text-lg font-bold text-ink">{fixture.goalsHome ?? "-"}</span>
           <span className="text-[11px] text-ink-muted">{fixture.scoreHome ?? "—"}</span>
         </div>
-        <span className="text-ink-muted">—</span>
-        <div className="flex flex-col items-center">
+
+        <span className="pt-20 text-ink-muted">—</span>
+
+        <div className="flex flex-col items-center gap-1 text-center">
+          <span className="flex min-h-20 items-center break-words text-sm font-medium text-ink">
+            {fixture.awayName ?? "—"}
+          </span>
           <span className="text-lg font-bold text-ink">{fixture.goalsAway ?? "-"}</span>
           <span className="text-[11px] text-ink-muted">{fixture.scoreAway ?? "—"}</span>
         </div>
-        <span className="flex-1 text-left text-sm font-medium text-ink">{fixture.awayName ?? "—"}</span>
       </div>
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center self-center rounded-full bg-emerald-50 text-emerald-700">
         <Check size={13} />
       </span>
     </div>

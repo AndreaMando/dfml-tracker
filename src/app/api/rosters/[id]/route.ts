@@ -38,9 +38,16 @@ export async function GET(
     .innerJoin(players, eq(rosterPlayers.playerId, players.id))
     .where(eq(rosterPlayers.rosterId, id));
 
+  const participant = participantRows[0] ?? null;
+  // The fantasy team name lives on the participant (teamName, set on the
+  // Participants page) — that's the single source of truth everywhere it's
+  // shown. rosters.name is legacy and only a last-resort fallback.
+  const teamName = participant?.teamName || participant?.displayName || roster.name;
+
   return NextResponse.json({
     ...roster,
-    participant: participantRows[0] ?? null,
+    name: teamName,
+    participant,
     players: composition,
   });
 }
@@ -66,6 +73,7 @@ export async function PATCH(
   if (!updated[0]) {
     return NextResponse.json({ error: "Roster not found" }, { status: 404 });
   }
+
   return NextResponse.json(updated[0]);
 }
 

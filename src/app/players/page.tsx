@@ -6,6 +6,8 @@ import { ModuleShell } from "../../components/module-shell";
 import { SectionCard } from "../../components/section-card";
 import { FilterPill } from "../../components/filter-pill";
 import { Tabs } from "../../components/tabs";
+import { RoleBadge } from "../../components/role-badge";
+import { StatIcon } from "../../components/stat-icon";
 import { useTranslation } from "../../lib/i18n";
 
 type Player = {
@@ -18,10 +20,13 @@ type Player = {
   fvm: string | null;
   isUnder21: boolean | null;
   status: string | null;
+  createdAt: string;
   ownerRosterId: string | null;
   ownerRosterName: string | null;
   ownerParticipantName: string | null;
 };
+
+type GridSort = "recent" | "value";
 
 type Season = { id: string; name: string; status: string; year: number };
 
@@ -62,12 +67,6 @@ const STRING_SORT_KEYS: StatSortKey[] = ["fullName", "position"];
 
 const positions = ["all", "GK", "DF", "MF", "FW"];
 
-const roleStyles: Record<Player["position"], string> = {
-  GK: "bg-sky-50 text-sky-700",
-  DF: "bg-emerald-50 text-emerald-700",
-  MF: "bg-amber-50 text-amber-700",
-  FW: "bg-rose-50 text-rose-700",
-};
 
 function OwnerBadge({ player, t }: { player: Player; t: (key: string) => string }) {
   if (!player.ownerRosterName) return null;
@@ -93,6 +92,7 @@ export default function PlayersPage() {
   const [showTransferred, setShowTransferred] = useState(false);
   const [gridSearch, setGridSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState<string[]>([]);
+  const [gridSort, setGridSort] = useState<GridSort>("recent");
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,19 +154,17 @@ export default function PlayersPage() {
     loadStats();
   }, [seasonId]);
 
-  // Matchday selectors: default to the current matchday (last one with played
-  // fixtures, same logic as the top ticker) and cap the dropdowns at however
-  // many matchdays this season's calendar actually has.
+  // Matchday selectors: default to the current matchday (same logic as the
+  // top ticker — last played, or the next one if its lineups are already
+  // locked) and cap the dropdowns at however many matchdays this season's
+  // calendar actually has.
   useEffect(() => {
     if (!seasonId) return;
-    fetch(`/api/fixtures?seasonId=${seasonId}`)
+    fetch(`/api/fixtures/current-matchday?seasonId=${seasonId}`)
       .then((res) => res.json())
-      .then((all: { matchdayNumber: number; status: string }[]) => {
-        if (all.length === 0) return;
-        setMaxMatchday(Math.max(...all.map((f) => f.matchdayNumber)));
-        const played = all.filter((f) => f.status === "played").map((f) => f.matchdayNumber);
-        const current = played.length > 0 ? Math.max(...played) : 1;
-        setMatchdayNumber(current);
+      .then((data: { matchday: number; maxMatchday: number }) => {
+        setMaxMatchday(data.maxMatchday);
+        setMatchdayNumber(data.matchday);
       });
   }, [seasonId]);
 
@@ -244,14 +242,20 @@ export default function PlayersPage() {
   }
 
   const filteredPlayers = useMemo(() => {
-    return players.filter((player) => {
+    const filtered = players.filter((player) => {
       if (!showTransferred && (player.status === "transferred" || !player.teamName)) return false;
       if (activePosition !== "all" && player.position !== activePosition) return false;
       if (teamFilter.length > 0 && (!player.teamName || !teamFilter.includes(player.teamName))) return false;
       if (gridSearch && !player.fullName.toLowerCase().includes(gridSearch.toLowerCase())) return false;
       return true;
     });
-  }, [players, activePosition, showTransferred, teamFilter, gridSearch]);
+    if (gridSort === "value") {
+      return [...filtered].sort((a, b) => Number(b.currentValue ?? 0) - Number(a.currentValue ?? 0));
+    }
+    return [...filtered].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [players, activePosition, showTransferred, teamFilter, gridSearch, gridSort]);
 
   const STATS_PAGE_SIZE = 20;
   const [statsPage, setStatsPage] = useState(0);
@@ -305,10 +309,6 @@ export default function PlayersPage() {
         </span>
       </th>
     );
-  }
-
-  function StatIcon({ src, alt }: { src: string; alt: string }) {
-    return <img src={src} alt={alt} title={alt} className="mx-auto h-5 w-5 object-contain" />;
   }
 
   return (
@@ -460,6 +460,19 @@ export default function PlayersPage() {
                     ))}
                   </div>
                 </details>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-ink-muted">{t("Sort by")}</span>
+                  <FilterPill
+                    label={t("Most recent")}
+                    active={gridSort === "recent"}
+                    onClick={() => setGridSort("recent")}
+                  />
+                  <FilterPill
+                    label={t("Current value")}
+                    active={gridSort === "value"}
+                    onClick={() => setGridSort("value")}
+                  />
+                </div>
               </div>
 
               <div className="grid gap-4 lg:grid-cols-3">
@@ -476,11 +489,7 @@ export default function PlayersPage() {
                       <p className="mt-1 text-sm text-ink-muted">{player.teamName ?? "—"}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] ${roleStyles[player.position]}`}
-                      >
-                        {t(player.position)}
-                      </span>
+                      <RoleBadge position={player.position} t={t} size="lg" />
                       {player.status === "transferred" && (
                         <span className="rounded-full bg-ink/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                           {t("Transferred")}
@@ -493,8 +502,6 @@ export default function PlayersPage() {
                     <span className="text-ink-muted">{t("Value")}</span>
                     <strong>{player.currentValue ?? "—"}</strong>
                   </div>
-                  <p className="-mt-2 text-sm text-ink-muted">FVM {player.fvm ?? "—"}</p>
-
                   {player.ownerRosterName && (
                     <div className="relative z-20 self-start">
                       <OwnerBadge player={player} t={t} />
@@ -577,11 +584,7 @@ export default function PlayersPage() {
                           </Link>
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${roleStyles[row.position]}`}
-                          >
-                            {t(row.position)}
-                          </span>
+                          <RoleBadge position={row.position} t={t} size="sm" />
                         </td>
                         <td className="px-3 py-2 text-center">{row.appearances}</td>
                         <td className="px-3 py-2 text-center">{row.avgVote.toFixed(2)}</td>

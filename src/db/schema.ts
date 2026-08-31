@@ -248,6 +248,12 @@ export const lineupPlayers = pgTable("lineup_players", {
     .references(() => players.id, { onDelete: "cascade" }),
   role: lineupRoleEnum("role").notNull(),
   positionIndex: integer("position_index"),
+  // leghe.fantacalcio.it's teamLineup raw `scr` sentinel 55 means the player
+  // came on briefly but got no press vote (real "s.v."); sentinel 56 means
+  // zero minutes played (either benched the whole match, or the real match
+  // hasn't been played yet — indistinguishable from this field alone, both
+  // correctly render as "—"). Only 55 is worth a distinct "s.v." label.
+  playedNoVote: boolean("played_no_vote").notNull().default(false),
 });
 
 export const matchdayFixtures = pgTable(

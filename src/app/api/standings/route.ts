@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../../../db";
-import { matchdayFixtures, rosters, standings } from "../../../db/schema";
+import { matchdayFixtures, participants, rosters, standings } from "../../../db/schema";
 
 type Row = {
   rosterId: string;
@@ -79,7 +79,19 @@ export async function GET(request: Request) {
     }
   }
 
-  const rosterNameMap = new Map(seasonRosters.map((r) => [r.id, r.name]));
+  // The fantasy team name is set on the Participants page (teamName) —
+  // that's the single source of truth everywhere it's displayed.
+  const participantIds = seasonRosters.map((r) => r.participantId);
+  const participantRows = participantIds.length
+    ? await db.select().from(participants).where(inArray(participants.id, participantIds))
+    : [];
+  const participantById = new Map(participantRows.map((p) => [p.id, p]));
+  const rosterNameMap = new Map(
+    seasonRosters.map((r) => {
+      const participant = participantById.get(r.participantId);
+      return [r.id, participant?.teamName || participant?.displayName || r.name];
+    })
+  );
   const rows = Array.from(table.values());
 
   // Cache into standings table (upsert per season+roster).

@@ -79,14 +79,15 @@ export async function DELETE(
 
     const price = Number(existing.acquisitionPrice ?? 0);
     if (price !== 0) {
-      // Sale rule: paid less than FVM -> get back exactly what was paid;
-      // paid at or above FVM -> capped at FVM. Equivalent to min(price, fvm).
-      // No FVM on record (e.g. manually added player) -> full refund.
+      // Sale rule: paid less than the current quotation -> get back exactly
+      // what was paid; paid at or above it -> capped at the current
+      // quotation. Equivalent to min(price, currentValue). No quotation on
+      // record (e.g. manually added player) -> full refund.
       const playerRows = await tx.select().from(players).where(eq(players.id, playerId));
-      const fvm = playerRows[0]?.fvm !== undefined && playerRows[0]?.fvm !== null
-        ? Number(playerRows[0].fvm)
+      const currentValue = playerRows[0]?.currentValue !== undefined && playerRows[0]?.currentValue !== null
+        ? Number(playerRows[0].currentValue)
         : null;
-      const refund = fvm !== null ? Math.min(price, fvm) : price;
+      const refund = currentValue !== null ? Math.min(price, currentValue) : price;
 
       const rosterRows = await tx.select().from(rosters).where(eq(rosters.id, rosterId));
       const roster = rosterRows[0];
