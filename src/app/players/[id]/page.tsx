@@ -21,11 +21,17 @@ type Player = {
   ownerParticipantName: string | null;
   stats: {
     appearances: number;
+    avgVote: number;
     goals: number;
     assists: number;
     yellowCards: number;
     redCards: number;
     cleanSheets: number;
+    penaltiesScored: number;
+    penaltiesMissed: number;
+    penaltiesSaved: number;
+    ownGoals: number;
+    goalsConceded: number;
   };
 };
 
@@ -114,10 +120,14 @@ export default function PlayerDetailPage() {
 
           <div className="mt-5 border-t border-line pt-5">
             <p className="text-sm text-ink-muted">{t("Career stats")}</p>
-            <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5">
+            <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
               <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
                 <span className="text-xs text-ink-muted">{t("Appearances")}</span>
                 <span className="text-lg font-semibold text-ink">{player.stats.appearances}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
+                <span className="text-xs text-ink-muted">{t("Average vote")}</span>
+                <span className="text-lg font-semibold text-ink">{player.stats.avgVote.toFixed(2)}</span>
               </div>
               <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
                 <StatIcon src="/icons8-goal-50.png" alt={t("Goals")} />
@@ -135,11 +145,33 @@ export default function PlayerDetailPage() {
                 <StatIcon src="/icons8-red-card-64.png" alt={t("Red cards")} />
                 <span className="text-lg font-semibold text-ink">{player.stats.redCards}</span>
               </div>
+              <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
+                <StatIcon src="/icons8-penalty-64.png" alt={t("Penalties scored")} />
+                <span className="text-lg font-semibold text-ink">{player.stats.penaltiesScored}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
+                <StatIcon src="/icons8-penalty-missed-64.png" alt={t("Penalties missed")} />
+                <span className="text-lg font-semibold text-ink">{player.stats.penaltiesMissed}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
+                <StatIcon src="/icons8-owngoal-64.png" alt={t("Own goals")} />
+                <span className="text-lg font-semibold text-ink">{player.stats.ownGoals}</span>
+              </div>
               {player.position === "GK" && (
-                <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
-                  <StatIcon src="/icons8-clean-sheet-80.png" alt={t("Clean sheets")} />
-                  <span className="text-lg font-semibold text-ink">{player.stats.cleanSheets}</span>
-                </div>
+                <>
+                  <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
+                    <StatIcon src="/icons8-clean-sheet-80.png" alt={t("Clean sheets")} />
+                    <span className="text-lg font-semibold text-ink">{player.stats.cleanSheets}</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
+                    <StatIcon src="/icons8-penalty-saved-64.png" alt={t("Penalties saved")} />
+                    <span className="text-lg font-semibold text-ink">{player.stats.penaltiesSaved}</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 rounded-2xl bg-surface-alt py-3">
+                    <StatIcon src="/icons8-goal-conceded-64.png" alt={t("Goals conceded")} />
+                    <span className="text-lg font-semibold text-ink">{player.stats.goalsConceded}</span>
+                  </div>
+                </>
               )}
             </div>
           </div>

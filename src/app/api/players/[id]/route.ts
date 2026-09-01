@@ -43,6 +43,7 @@ export async function GET(
   const [stats] = await db
     .select({
       appearances: sqlOp<number>`count(${matchdayScores.id})`.mapWith(Number),
+      avgVote: sqlOp<number>`coalesce(avg(${matchdayScores.vote}), 0)`.mapWith(Number),
       goals: sqlOp<number>`coalesce(sum(${matchdayScores.goals}), 0)`.mapWith(Number),
       assists: sqlOp<number>`coalesce(sum(${matchdayScores.assists}), 0)`.mapWith(Number),
       yellowCards: sqlOp<number>`coalesce(sum(${matchdayScores.yellowCards}), 0)`.mapWith(Number),
@@ -50,6 +51,11 @@ export async function GET(
       cleanSheets: sqlOp<number>`coalesce(sum(case when ${matchdayScores.cleanSheet} then 1 else 0 end), 0)`.mapWith(
         Number
       ),
+      penaltiesScored: sqlOp<number>`coalesce(sum(${matchdayScores.penaltiesScored}), 0)`.mapWith(Number),
+      penaltiesMissed: sqlOp<number>`coalesce(sum(${matchdayScores.penaltiesMissed}), 0)`.mapWith(Number),
+      penaltiesSaved: sqlOp<number>`coalesce(sum(${matchdayScores.penaltiesSaved}), 0)`.mapWith(Number),
+      ownGoals: sqlOp<number>`coalesce(sum(${matchdayScores.ownGoals}), 0)`.mapWith(Number),
+      goalsConceded: sqlOp<number>`coalesce(sum(${matchdayScores.goalsConceded}), 0)`.mapWith(Number),
     })
     .from(matchdayScores)
     .where(eq(matchdayScores.playerId, id));

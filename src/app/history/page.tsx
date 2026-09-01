@@ -264,18 +264,19 @@ export default function HistoryPage() {
                     {matchdays.length === 0 ? (
                       <p className="text-sm text-ink-muted">{t("No matchdays played yet.")}</p>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-2">
                         {matchdays.map((md) => (
-                          <div key={md}>
-                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                          <details key={md} className="group/md rounded-2xl border border-line">
+                            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-muted hover:text-ink">
+                              <ChevronDown size={14} className="transition group-open/md:rotate-180" />
                               {t("Matchday")} {md}
-                            </p>
-                            <div className="space-y-2">
+                            </summary>
+                            <div className="space-y-2 px-3 pb-3 pt-1">
                               {byMatchday.get(md)!.map((fixture) => (
                                 <MatchRow key={fixture.id} fixture={fixture} />
                               ))}
                             </div>
-                          </div>
+                          </details>
                         ))}
                       </div>
                     )}

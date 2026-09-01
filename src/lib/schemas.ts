@@ -214,6 +214,10 @@ export const importScoresSchema = z.object({
   fantacalcioSeason: z.string().min(1),
   fantacalcioMatchday: intSchema,
 });
+export const importRostersSchema = z.object({
+  sourceSeasonId: uuidSchema,
+  rosterIds: z.array(uuidSchema).min(1),
+});
 
 // ---- finance ----
 export const createFinancialTransactionSchema = z.object({
