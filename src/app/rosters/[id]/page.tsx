@@ -20,6 +20,7 @@ type CompositionRow = {
   currentValue: string | null;
   fvm: string | null;
   acquisitionPrice: string | null;
+  priceUncertain: boolean;
 };
 
 type RosterDetail = {
@@ -153,9 +154,11 @@ export default function RosterDetailPage() {
 
   // Mirrors the server-side rule in DELETE /api/rosters/[id]/players/[playerId]:
   // refund = min(acquisitionPrice, current quotation); full refund if the
-  // player has no quotation on record.
+  // player has no quotation on record, or if flagged priceUncertain (the
+  // asterisk on fantacalcio.it — long-term injury, transfer limbo, etc.).
   function computeRefund(player: CompositionRow) {
     const paid = Number(player.acquisitionPrice ?? 0);
+    if (player.priceUncertain) return paid;
     const currentValue =
       player.currentValue !== null && player.currentValue !== undefined ? Number(player.currentValue) : null;
     return currentValue !== null ? Math.min(paid, currentValue) : paid;
@@ -295,7 +298,17 @@ export default function RosterDetailPage() {
                         <td className="px-3 py-2">
                           <RoleBadge position={player.position} t={t} size="sm" />
                         </td>
-                        <td className="px-3 py-2 font-medium">{player.fullName}</td>
+                        <td className="px-3 py-2 font-medium">
+                          {player.fullName}
+                          {player.priceUncertain && (
+                            <span
+                              title={t("Uncertain roster status (fantacalcio.it asterisk) — full refund if sold")}
+                              className="ml-1 font-bold text-amber-600"
+                            >
+                              *
+                            </span>
+                          )}
+                        </td>
                         <td className="hidden px-3 py-2 text-ink-muted sm:table-cell">{player.teamName ?? "—"}</td>
                         <td className="px-3 py-2 text-right">
                           <input
@@ -395,6 +408,11 @@ export default function RosterDetailPage() {
           <div className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-ink">{t("Sell player")}</h3>
             <p className="mt-1 text-sm text-ink-muted">{sellTarget.fullName}</p>
+            {sellTarget.priceUncertain && (
+              <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                * {t("Uncertain roster status (fantacalcio.it asterisk) — full refund if sold")}
+              </p>
+            )}
 
             <div className="mt-4 space-y-2 rounded-2xl border border-line bg-surface-alt p-4 text-sm">
               <div className="flex items-center justify-between">

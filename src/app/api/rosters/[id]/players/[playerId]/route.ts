@@ -82,12 +82,18 @@ export async function DELETE(
       // Sale rule: paid less than the current quotation -> get back exactly
       // what was paid; paid at or above it -> capped at the current
       // quotation. Equivalent to min(price, currentValue). No quotation on
-      // record (e.g. manually added player) -> full refund.
+      // record (e.g. manually added player) -> full refund. Exception: a
+      // player flagged priceUncertain (the asterisk on fantacalcio.it —
+      // long-term injury, transfer limbo, etc.) always refunds in full, no
+      // cap — league rule.
       const playerRows = await tx.select().from(players).where(eq(players.id, playerId));
-      const currentValue = playerRows[0]?.currentValue !== undefined && playerRows[0]?.currentValue !== null
-        ? Number(playerRows[0].currentValue)
+      const player = playerRows[0];
+      const currentValue = player?.currentValue !== undefined && player?.currentValue !== null
+        ? Number(player.currentValue)
         : null;
-      const refund = currentValue !== null ? Math.min(price, currentValue) : price;
+      const refund = player?.priceUncertain
+        ? price
+        : currentValue !== null ? Math.min(price, currentValue) : price;
 
       const rosterRows = await tx.select().from(rosters).where(eq(rosters.id, rosterId));
       const roster = rosterRows[0];

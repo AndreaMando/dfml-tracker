@@ -1,0 +1,1 @@
+ALTER TABLE "players" ADD COLUMN "price_uncertain" boolean DEFAULT false NOT NULL;

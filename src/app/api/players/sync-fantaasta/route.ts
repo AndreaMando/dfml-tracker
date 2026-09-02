@@ -49,6 +49,7 @@ export async function POST() {
         initialValue: row.initialValue.toString(),
         fvm: row.fvm.toString(),
         imageUrl: row.imageUrl,
+        priceUncertain: row.priceUncertain,
         status: "active" as const,
       }))
     );
@@ -58,7 +59,7 @@ export async function POST() {
   if (toUpdate.length > 0) {
     const valueRows = toUpdate.map(
       (row) =>
-        sql`(${row.id}::uuid, ${row.fullName}, ${row.position}::player_position, ${row.teamName}, ${row.currentValue.toString()}::numeric, ${row.initialValue.toString()}::numeric, ${row.fvm.toString()}::numeric, ${row.imageUrl})`
+        sql`(${row.id}::uuid, ${row.fullName}, ${row.position}::player_position, ${row.teamName}, ${row.currentValue.toString()}::numeric, ${row.initialValue.toString()}::numeric, ${row.fvm.toString()}::numeric, ${row.imageUrl}, ${row.priceUncertain}::boolean)`
     );
     await db.execute(sql`
       UPDATE players AS p
@@ -70,9 +71,10 @@ export async function POST() {
         initial_value = v.initial_value,
         fvm = v.fvm,
         image_url = v.image_url,
+        price_uncertain = v.price_uncertain,
         status = 'active'
       FROM (VALUES ${sql.join(valueRows, sql`, `)})
-        AS v(id, full_name, position, team_name, current_value, initial_value, fvm, image_url)
+        AS v(id, full_name, position, team_name, current_value, initial_value, fvm, image_url, price_uncertain)
       WHERE p.id = v.id
     `);
   }

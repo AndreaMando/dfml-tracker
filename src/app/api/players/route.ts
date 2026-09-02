@@ -20,6 +20,7 @@ export async function GET() {
       fvm: players.fvm,
       status: players.status,
       imageUrl: players.imageUrl,
+      priceUncertain: players.priceUncertain,
       createdAt: players.createdAt,
       ownerRosterId: rosters.id,
       // The fantasy team name is set on the Participants page (teamName) —

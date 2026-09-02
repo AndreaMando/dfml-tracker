@@ -87,6 +87,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "Team name": "Nome squadra",
     "set on the Participants page": "impostato nella pagina Partecipanti",
     "Sell player": "Vendi giocatore",
+    "Uncertain roster status (fantacalcio.it asterisk) — full refund if sold":
+      "Stato in rosa incerto (asterisco fantacalcio.it) — rimborso pieno se venduto",
     "Credits received": "Crediti ricevuti",
     "Confirm sale": "Conferma vendita",
     "Cancel": "Annulla",

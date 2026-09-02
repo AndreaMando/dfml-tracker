@@ -19,6 +19,7 @@ export type FantaastaPlayer = {
   initialValue: number;
   fvm: number;
   imageUrl: string | null;
+  priceUncertain: boolean;
 };
 
 function authHeaders(): Record<string, string> {
@@ -43,7 +44,12 @@ function authHeaders(): Record<string, string> {
  *   7-8 mantra current/initial (ignored), 9 teamName,
  *   10 fvm classic, 11 fvm mantra (ignored),
  *   12 foot, 13 nationality (ignored), 14 birthdate "dd/mm/yyyy HH:MM:SS",
- *   15 imageUrl, 16-20 live stats/flags (ignored), 21 constant season code (ignored).
+ *   15 imageUrl, 16 priceUncertain (1 = the asterisk fantacalcio.it shows
+ *   next to the quotation — roster status uncertain: long-term injury,
+ *   transfer limbo, etc. Distinct from a player fully dropping out of the
+ *   feed — these players are still listed, under their current team, just
+ *   flagged),
+ *   17-20 live stats/flags (ignored), 21 constant season code (ignored).
  */
 function parseLine(line: string): FantaastaPlayer | null {
   const fields = line.split(",");
@@ -62,6 +68,7 @@ function parseLine(line: string): FantaastaPlayer | null {
   const initialValue = Number(fields[6]);
   const fvm = Number(fields[10]);
   const imageUrl = fields[15]?.trim() || null;
+  const priceUncertain = fields[16]?.trim() === "1";
 
   return {
     externalId,
@@ -72,6 +79,7 @@ function parseLine(line: string): FantaastaPlayer | null {
     initialValue: Number.isFinite(initialValue) ? initialValue : 0,
     fvm: Number.isFinite(fvm) ? fvm : 0,
     imageUrl,
+    priceUncertain,
   };
 }
 

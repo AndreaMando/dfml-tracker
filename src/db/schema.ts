@@ -123,6 +123,13 @@ export const players = pgTable(
     fvm: numeric("fvm", { precision: 10, scale: 2 }),
     status: text("status"),
     imageUrl: text("image_url"),
+    // fantaasta feed flag (the asterisk fantacalcio.it shows next to a
+    // player's quotation) — a broader "roster status uncertain" signal
+    // (long-term injury, transfer limbo, etc.), distinct from `status:
+    // "transferred"` which only fires once a player fully drops out of the
+    // feed. League rule: selling a flagged player refunds the full purchase
+    // price, no cap at the current quotation.
+    priceUncertain: boolean("price_uncertain").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({

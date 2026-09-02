@@ -33,6 +33,7 @@ export async function GET(
       teamName: players.teamName,
       currentValue: players.currentValue,
       fvm: players.fvm,
+      priceUncertain: players.priceUncertain,
     })
     .from(rosterPlayers)
     .innerJoin(players, eq(rosterPlayers.playerId, players.id))
