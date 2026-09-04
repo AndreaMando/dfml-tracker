@@ -46,21 +46,59 @@ export async function POST(request: Request) {
   } = parsed.data;
 
   const trade = await db.transaction(async (tx) => {
-    if (playersFromA.length > 0) {
-      await tx
-        .update(rosterPlayers)
-        .set({ rosterId: rosterIdB })
-        .where(
-          and(inArray(rosterPlayers.playerId, playersFromA), eq(rosterPlayers.rosterId, rosterIdA))
-        );
-    }
-    if (playersFromB.length > 0) {
-      await tx
-        .update(rosterPlayers)
-        .set({ rosterId: rosterIdA })
-        .where(
-          and(inArray(rosterPlayers.playerId, playersFromB), eq(rosterPlayers.rosterId, rosterIdB))
-        );
+    // 1-for-1 trades (the only kind that exist in practice — the actual
+    // negotiation happens outside this tracker) keep the acquisition price
+    // and the Q.In.-at-purchase snapshot with the fantallenatore who paid
+    // it, not with the physical player: after the swap, each side's new
+    // player is recorded at what that side originally paid for the player
+    // they gave up.
+    if (playersFromA.length === 1 && playersFromB.length === 1) {
+      const [rowA] = await tx
+        .select()
+        .from(rosterPlayers)
+        .where(and(eq(rosterPlayers.playerId, playersFromA[0]), eq(rosterPlayers.rosterId, rosterIdA)));
+      const [rowB] = await tx
+        .select()
+        .from(rosterPlayers)
+        .where(and(eq(rosterPlayers.playerId, playersFromB[0]), eq(rosterPlayers.rosterId, rosterIdB)));
+
+      if (rowA) {
+        await tx
+          .update(rosterPlayers)
+          .set({
+            rosterId: rosterIdB,
+            acquisitionPrice: rowB?.acquisitionPrice ?? null,
+            acquisitionInitialValue: rowB?.acquisitionInitialValue ?? null,
+          })
+          .where(eq(rosterPlayers.id, rowA.id));
+      }
+      if (rowB) {
+        await tx
+          .update(rosterPlayers)
+          .set({
+            rosterId: rosterIdA,
+            acquisitionPrice: rowA?.acquisitionPrice ?? null,
+            acquisitionInitialValue: rowA?.acquisitionInitialValue ?? null,
+          })
+          .where(eq(rosterPlayers.id, rowB.id));
+      }
+    } else {
+      if (playersFromA.length > 0) {
+        await tx
+          .update(rosterPlayers)
+          .set({ rosterId: rosterIdB })
+          .where(
+            and(inArray(rosterPlayers.playerId, playersFromA), eq(rosterPlayers.rosterId, rosterIdA))
+          );
+      }
+      if (playersFromB.length > 0) {
+        await tx
+          .update(rosterPlayers)
+          .set({ rosterId: rosterIdA })
+          .where(
+            and(inArray(rosterPlayers.playerId, playersFromB), eq(rosterPlayers.rosterId, rosterIdB))
+          );
+      }
     }
 
     if (creditsDeltaA !== undefined && creditsDeltaA !== null && creditsDeltaA !== "") {

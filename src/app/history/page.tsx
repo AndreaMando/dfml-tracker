@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Trophy } from "lucide-react";
 import { ModuleShell } from "../../components/module-shell";
 import { useTranslation } from "../../lib/i18n";
+import { CUP_FINAL_ROUND, cupRoundLabelKey } from "../../lib/cup";
 
 type Season = {
   id: string;
@@ -60,6 +61,7 @@ type PlayerStat = {
 type SeasonData = {
   market: MarketSession[];
   fixtures: Fixture[];
+  cupFixtures: Fixture[];
   standings: StandingRow[];
   stats: PlayerStat[];
 };
@@ -105,6 +107,20 @@ function computeAwards(stats: PlayerStat[]) {
   };
 }
 
+// Bracket progression (who advances to the next round) isn't computed by
+// this app — but once the Finale fixture itself has a recorded result, the
+// winner is just "whoever won that one match", same goals/score comparison
+// already used to determine any fixture's outcome.
+function getCupWinner(cupFixtures: Fixture[]) {
+  const final = cupFixtures.find((f) => f.matchdayNumber === CUP_FINAL_ROUND && f.status === "played");
+  if (!final) return null;
+  const hasGoals = final.goalsHome !== null && final.goalsAway !== null;
+  const homeMetric = hasGoals ? final.goalsHome! : Number(final.scoreHome ?? 0);
+  const awayMetric = hasGoals ? final.goalsAway! : Number(final.scoreAway ?? 0);
+  if (homeMetric === awayMetric) return null;
+  return homeMetric > awayMetric ? final.homeName : final.awayName;
+}
+
 function MatchRow({ fixture }: { fixture: Fixture }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-alt px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -148,13 +164,14 @@ export default function HistoryPage() {
 
     const entries = await Promise.all(
       sorted.map(async (s) => {
-        const [market, fixtures, standings, stats] = await Promise.all([
+        const [market, fixtures, cupFixtures, standings, stats] = await Promise.all([
           fetch(`/api/market?seasonId=${s.id}`).then((res) => res.json()),
           fetch(`/api/fixtures?seasonId=${s.id}`).then((res) => res.json()),
+          fetch(`/api/fixtures?seasonId=${s.id}&competition=cup`).then((res) => res.json()),
           fetch(`/api/standings?seasonId=${s.id}`).then((res) => res.json()),
           fetch(`/api/players/stats?seasonId=${s.id}`).then((res) => res.json()),
         ]);
-        return [s.id, { market, fixtures, standings, stats }] as const;
+        return [s.id, { market, fixtures, cupFixtures, standings, stats }] as const;
       })
     );
     setDataBySeason(Object.fromEntries(entries));
@@ -196,6 +213,16 @@ export default function HistoryPage() {
             const matchdays = [...byMatchday.keys()].sort((a, b) => a - b);
             const isConcluded = season.status === "finished" || season.status === "archived";
             const awards = data ? computeAwards(data.stats) : null;
+
+            const cupFixtures = (data?.cupFixtures ?? []).filter((f) => f.status === "played");
+            const cupByRound = new Map<number, Fixture[]>();
+            for (const fixture of cupFixtures) {
+              const list = cupByRound.get(fixture.matchdayNumber) ?? [];
+              list.push(fixture);
+              cupByRound.set(fixture.matchdayNumber, list);
+            }
+            const cupRounds = [...cupByRound.keys()].sort((a, b) => a - b);
+            const cupWinner = data ? getCupWinner(data.cupFixtures) : null;
 
             return (
               <details
@@ -281,6 +308,35 @@ export default function HistoryPage() {
                       </div>
                     )}
                   </section>
+
+                  {cupRounds.length > 0 && (
+                    <section>
+                      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-muted">
+                        {t("Cup")}
+                      </h3>
+                      {cupWinner && (
+                        <div className="mb-3 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                          <Trophy size={16} />
+                          {t("Cup winner")}: {cupWinner}
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {cupRounds.map((round) => (
+                          <details key={round} className="group/cup rounded-2xl border border-line">
+                            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-muted hover:text-ink">
+                              <ChevronDown size={14} className="transition group-open/cup:rotate-180" />
+                              {t(cupRoundLabelKey(round))}
+                            </summary>
+                            <div className="space-y-2 px-3 pb-3 pt-1">
+                              {cupByRound.get(round)!.map((fixture) => (
+                                <MatchRow key={fixture.id} fixture={fixture} />
+                              ))}
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    </section>
+                  )}
 
                   {isConcluded && (
                     <>

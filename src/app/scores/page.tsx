@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Check, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 import { ModuleShell } from "../../components/module-shell";
 import { SectionCard } from "../../components/section-card";
 import { RoleBadge } from "../../components/role-badge";
 import { useTranslation } from "../../lib/i18n";
+import { cupRoundLabelKey } from "../../lib/cup";
 
 type Season = { id: string; name: string; status: string };
-type Roster = { id: string; name: string | null; seasonId: string };
 type Fixture = {
   id: string;
   matchdayNumber: number;
@@ -21,11 +21,6 @@ type Fixture = {
   goalsHome: number | null;
   goalsAway: number | null;
   status: string;
-};
-type CompositionRow = {
-  playerId: string;
-  fullName: string;
-  position: "GK" | "DF" | "MF" | "FW";
 };
 type LineupPlayerRow = {
   playerId: string;
@@ -52,21 +47,6 @@ type Lineup = {
   formation: string | null;
   starters: LineupPlayerRow[];
   bench: LineupPlayerRow[];
-};
-type RosterDetail = { id: string; players: CompositionRow[] };
-type ScoreRow = {
-  id: string;
-  playerId: string;
-  vote: string | null;
-  score: string | null;
-  goals: number | null;
-  assists: number | null;
-  yellowCards: number | null;
-  redCards: number | null;
-  cleanSheet: boolean | null;
-  penaltiesSaved: number | null;
-  penaltiesMissed: number | null;
-  ownGoals: number | null;
 };
 
 const roleOrder: Record<LineupPlayerRow["position"], number> = { GK: 0, DF: 1, MF: 2, FW: 3 };
@@ -137,29 +117,69 @@ function LineupPanel({
   );
 }
 
-type PlayerFormState = {
-  vote: string;
-  goals: string;
-  assists: string;
-  yellowCards: string;
-  redCards: string;
-  cleanSheet: boolean;
-  penaltiesSaved: string;
-  penaltiesMissed: string;
-  ownGoals: string;
-};
+// Cup fixtures are entirely machine-managed (sync-cup-calendar creates them,
+// sync-lineups fills in formations/votes) — no manual score editing or
+// delete button, just the same readonly scoreline + lineups toggle already
+// used for league fixtures, without the editable inputs.
+function CupFixtureCard({
+  fixture,
+  lineups,
+  isOpen,
+  onToggle,
+  t,
+}: {
+  fixture: Fixture;
+  lineups: Lineup[];
+  isOpen: boolean;
+  onToggle: () => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="rounded-2xl border border-line bg-surface p-4">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-azure-deep">
+        {t(cupRoundLabelKey(fixture.matchdayNumber))}
+      </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:flex-1">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <span className="flex min-h-10 items-center break-words text-sm font-semibold text-ink">
+              {fixture.homeName ?? "—"}
+            </span>
+            <span className="text-xl font-bold text-ink">{fixture.goalsHome ?? "-"}</span>
+            <span className="text-xs text-ink-muted">{fixture.scoreHome ?? "—"}</span>
+          </div>
+          <span className="pt-10 text-ink-muted">—</span>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <span className="flex min-h-10 items-center break-words text-sm font-semibold text-ink">
+              {fixture.awayName ?? "—"}
+            </span>
+            <span className="text-xl font-bold text-ink">{fixture.goalsAway ?? "-"}</span>
+            <span className="text-xs text-ink-muted">{fixture.scoreAway ?? "—"}</span>
+          </div>
+        </div>
+        <span
+          title={t(fixture.status)}
+          className={`flex h-8 w-8 items-center justify-center self-center rounded-full sm:self-auto ${
+            fixture.status === "played" ? "bg-emerald-50 text-emerald-700" : "bg-surface-alt text-ink-muted"
+          }`}
+        >
+          <Check size={16} />
+        </span>
+      </div>
 
-const emptyForm: PlayerFormState = {
-  vote: "",
-  goals: "",
-  assists: "",
-  yellowCards: "",
-  redCards: "",
-  cleanSheet: false,
-  penaltiesSaved: "",
-  penaltiesMissed: "",
-  ownGoals: "",
-};
+      <button type="button" onClick={onToggle} className="mt-3 text-xs font-semibold text-azure transition hover:text-azure-deep">
+        {isOpen ? t("Hide lineups") : t("Show lineups")}
+      </button>
+
+      {isOpen && (
+        <div className="mt-3 grid gap-4 border-t border-line pt-3 sm:grid-cols-2">
+          <LineupPanel lineup={lineups.find((l) => l.rosterId === fixture.rosterIdHome)} fallbackName={fixture.homeName} t={t} />
+          <LineupPanel lineup={lineups.find((l) => l.rosterId === fixture.rosterIdAway)} fallbackName={fixture.awayName} t={t} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ScoresPage() {
   const { t } = useTranslation();
@@ -167,25 +187,15 @@ export default function ScoresPage() {
   const [seasonId, setSeasonId] = useState("");
   const [matchdayNumber, setMatchdayNumber] = useState(1);
   const [maxMatchday, setMaxMatchday] = useState(38);
-  const [rosters, setRosters] = useState<Roster[]>([]);
 
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
-  const [newHome, setNewHome] = useState("");
-  const [newAway, setNewAway] = useState("");
-
-  const [statsRosterId, setStatsRosterId] = useState("");
-  const [rosterDetail, setRosterDetail] = useState<RosterDetail | null>(null);
-  const [existingScores, setExistingScores] = useState<ScoreRow[]>([]);
-  const [forms, setForms] = useState<Record<string, PlayerFormState>>({});
-  const [savingPlayerId, setSavingPlayerId] = useState("");
-
-  const [competitionId, setCompetitionId] = useState("26549");
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ updated: number; notMatched: string[] } | null>(null);
-  const [syncError, setSyncError] = useState("");
 
   const [lineups, setLineups] = useState<Lineup[]>([]);
   const [openLineupFixtureId, setOpenLineupFixtureId] = useState("");
+
+  const [cupFixtures, setCupFixtures] = useState<Fixture[]>([]);
+  const [cupLineups, setCupLineups] = useState<Lineup[]>([]);
+  const [openCupLineupFixtureId, setOpenCupLineupFixtureId] = useState("");
 
   useEffect(() => {
     fetch("/api/seasons")
@@ -196,13 +206,6 @@ export default function ScoresPage() {
         if (active) setSeasonId(active.id);
       });
   }, []);
-
-  useEffect(() => {
-    if (!seasonId) return;
-    fetch("/api/rosters")
-      .then((res) => res.json())
-      .then((data: Roster[]) => setRosters(data.filter((r) => r.seasonId === seasonId)));
-  }, [seasonId]);
 
   // Matchday selector: default to the current matchday (same logic as the
   // top ticker — last played, or the next one if its lineups are already
@@ -226,6 +229,21 @@ export default function ScoresPage() {
   }
 
   useEffect(loadFixtures, [seasonId, matchdayNumber]);
+
+  // Fixtures/results are entirely machine-managed now — re-sync from
+  // leghe.fantacalcio.it every time the page loads instead of a manual
+  // button. Season-wide (covers every calculated matchday in one call), so
+  // it only needs to re-run when the season changes.
+  useEffect(() => {
+    if (!seasonId) return;
+    fetch("/api/fixtures/sync-results", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seasonId, competitionId: "26549" }),
+    })
+      .then(() => loadFixtures())
+      .catch(() => null);
+  }, [seasonId]);
 
   function loadLineups() {
     if (!seasonId) return;
@@ -251,18 +269,52 @@ export default function ScoresPage() {
       .catch(() => null);
   }, [seasonId, matchdayNumber]);
 
-  async function handleCreateFixture(event: React.FormEvent) {
-    event.preventDefault();
-    if (!newHome || !newAway) return;
-    await fetch("/api/fixtures", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seasonId, matchdayNumber, rosterIdHome: newHome, rosterIdAway: newAway }),
-    });
-    setNewHome("");
-    setNewAway("");
-    loadFixtures();
-  }
+  // Coppa runs every few campionato matchdays (quarti alla 7, ritorno alla
+  // 14, ecc.) — the fixture calendar is entirely machine-managed, so every
+  // page load re-syncs it, then checks whether a cup round happens to fall
+  // on the currently selected matchday and, if so, syncs its lineups/votes
+  // too. Most matchdays have no cup round: the section below simply stays
+  // empty.
+  useEffect(() => {
+    if (!seasonId || !matchdayNumber) return;
+    let cancelled = false;
+
+    async function syncCup() {
+      await fetch("/api/fixtures/sync-cup-calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seasonId }),
+      }).catch(() => null);
+
+      const fixturesRes = await fetch(
+        `/api/fixtures?seasonId=${seasonId}&competition=cup&linkedMatchdayNumber=${matchdayNumber}`
+      ).then((res) => res.json() as Promise<Fixture[]>);
+      if (cancelled) return;
+      setCupFixtures(fixturesRes);
+
+      const cupRound = fixturesRes[0]?.matchdayNumber;
+      if (cupRound === undefined) {
+        setCupLineups([]);
+        return;
+      }
+
+      await fetch("/api/scores/sync-lineups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seasonId, matchdayNumber: cupRound, competition: "cup" }),
+      }).catch(() => null);
+
+      const lineupsRes = await fetch(
+        `/api/lineups?seasonId=${seasonId}&matchdayNumber=${cupRound}&competition=cup`
+      ).then((res) => res.json() as Promise<Lineup[]>);
+      if (!cancelled) setCupLineups(lineupsRes);
+    }
+
+    syncCup();
+    return () => {
+      cancelled = true;
+    };
+  }, [seasonId, matchdayNumber]);
 
   async function handleFixtureScoreBlur(
     fixtureId: string,
@@ -278,114 +330,8 @@ export default function ScoresPage() {
     loadFixtures();
   }
 
-  async function handleSyncResults(event: React.FormEvent) {
-    event.preventDefault();
-    setSyncing(true);
-    setSyncError("");
-    setSyncResult(null);
-    const res = await fetch("/api/fixtures/sync-results", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seasonId, competitionId }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setSyncError(data.error ?? t("Sync failed"));
-    } else {
-      setSyncResult(data);
-      loadFixtures();
-    }
-    setSyncing(false);
-  }
-
-  async function handleDeleteFixture(fixtureId: string) {
-    await fetch(`/api/fixtures/${fixtureId}`, { method: "DELETE" });
-    loadFixtures();
-  }
-
-  useEffect(() => {
-    if (!statsRosterId) {
-      setRosterDetail(null);
-      return;
-    }
-    fetch(`/api/rosters/${statsRosterId}`)
-      .then((res) => res.json())
-      .then(setRosterDetail);
-  }, [statsRosterId]);
-
-  function loadExistingScores() {
-    if (!seasonId || !statsRosterId) return;
-    fetch(`/api/scores?seasonId=${seasonId}&matchdayNumber=${matchdayNumber}&rosterId=${statsRosterId}`)
-      .then((res) => res.json())
-      .then((data: ScoreRow[]) => {
-        setExistingScores(data);
-        const nextForms: Record<string, PlayerFormState> = {};
-        for (const row of data) {
-          nextForms[row.playerId] = {
-            vote: row.vote ?? "",
-            goals: row.goals?.toString() ?? "",
-            assists: row.assists?.toString() ?? "",
-            yellowCards: row.yellowCards?.toString() ?? "",
-            redCards: row.redCards?.toString() ?? "",
-            cleanSheet: !!row.cleanSheet,
-            penaltiesSaved: row.penaltiesSaved?.toString() ?? "",
-            penaltiesMissed: row.penaltiesMissed?.toString() ?? "",
-            ownGoals: row.ownGoals?.toString() ?? "",
-          };
-        }
-        setForms(nextForms);
-      });
-  }
-
-  useEffect(loadExistingScores, [seasonId, statsRosterId, matchdayNumber]);
-
-  function updateForm(playerId: string, patch: Partial<PlayerFormState>) {
-    setForms((prev) => ({ ...prev, [playerId]: { ...(prev[playerId] ?? emptyForm), ...patch } }));
-  }
-
-  const existingByPlayer = useMemo(
-    () => new Map(existingScores.map((row) => [row.playerId, row])),
-    [existingScores]
-  );
-
-  async function handleSavePlayer(playerId: string) {
-    const form = forms[playerId] ?? emptyForm;
-    const existing = existingByPlayer.get(playerId);
-    const payload = {
-      seasonId,
-      rosterId: statsRosterId,
-      playerId,
-      matchdayNumber,
-      vote: form.vote || null,
-      goals: form.goals ? Number(form.goals) : null,
-      assists: form.assists ? Number(form.assists) : null,
-      yellowCards: form.yellowCards ? Number(form.yellowCards) : null,
-      redCards: form.redCards ? Number(form.redCards) : null,
-      cleanSheet: form.cleanSheet,
-      penaltiesSaved: form.penaltiesSaved ? Number(form.penaltiesSaved) : null,
-      penaltiesMissed: form.penaltiesMissed ? Number(form.penaltiesMissed) : null,
-      ownGoals: form.ownGoals ? Number(form.ownGoals) : null,
-    };
-    setSavingPlayerId(playerId);
-    if (existing) {
-      await fetch(`/api/scores/${existing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    } else {
-      await fetch("/api/scores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    }
-    loadExistingScores();
-    setSavingPlayerId("");
-  }
-
   return (
-    <ModuleShell title={t("Scores & Votes")} description={t("Review matchday points and vote-based scoring summaries.")}>
+    <ModuleShell title={t("Results & Votes")} description={t("Review matchday results and vote-based scoring summaries.")}>
       <div className="mb-6 flex flex-wrap items-end gap-4">
         <label className="block space-y-2 text-sm text-ink">
           <span>{t("Season")}</span>
@@ -416,41 +362,6 @@ export default function ScoresPage() {
           </select>
         </label>
       </div>
-
-      <SectionCard
-        title={t("Sync results from leghe.fantacalcio.it")}
-        description={t("Fetch fantapunti, goals and match outcome for all calculated matchdays.")}
-      >
-        <form onSubmit={handleSyncResults} className="flex flex-wrap items-end gap-3">
-          <label className="block space-y-2 text-sm text-ink">
-            <span>{t("Competition ID")}</span>
-            <input
-              value={competitionId}
-              onChange={(event) => setCompetitionId(event.target.value)}
-              placeholder="26549"
-              className="w-32 rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={syncing}
-            className="rounded-2xl bg-azure px-4 py-3 text-sm font-semibold text-white transition hover:bg-azure-deep disabled:opacity-50"
-          >
-            {syncing ? t("Syncing") + "..." : t("Sync")}
-          </button>
-        </form>
-        {syncError && (
-          <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {syncError}
-          </p>
-        )}
-        {syncResult && (
-          <p className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {t("Fixtures updated")}: {syncResult.updated}.{" "}
-            {syncResult.notMatched.length > 0 && `${t("Not matched")}: ${syncResult.notMatched.join("; ")}`}
-          </p>
-        )}
-      </SectionCard>
 
       <SectionCard title={t("Fixtures")} description={t("Matches for this matchday.")}>
         <div className="space-y-3">
@@ -503,27 +414,16 @@ export default function ScoresPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-2 sm:justify-end">
-                <span
-                  title={t(fixture.status)}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                    fixture.status === "played"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-surface-alt text-ink-muted"
-                  }`}
-                >
-                  <Check size={16} />
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteFixture(fixture.id)}
-                  title={t("Remove")}
-                  aria-label={t("Remove")}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100"
-                >
-                  <X size={16} />
-                </button>
-              </div>
+              <span
+                title={t(fixture.status)}
+                className={`flex h-8 w-8 items-center justify-center self-center rounded-full sm:self-auto ${
+                  fixture.status === "played"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-surface-alt text-ink-muted"
+                }`}
+              >
+                <Check size={16} />
+              </span>
             </div>
 
             <button
@@ -554,187 +454,26 @@ export default function ScoresPage() {
           ))}
           {fixtures.length === 0 && <p className="text-sm text-ink-muted">{t("No data yet")}</p>}
         </div>
-
-        <form onSubmit={handleCreateFixture} className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="block space-y-2 text-sm text-ink">
-            <span>{t("Home")}</span>
-            <select
-              value={newHome}
-              onChange={(event) => setNewHome(event.target.value)}
-              className="rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
-            >
-              <option value="">{t("Select a fantasy team")}</option>
-              {rosters.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-2 text-sm text-ink">
-            <span>{t("Away")}</span>
-            <select
-              value={newAway}
-              onChange={(event) => setNewAway(event.target.value)}
-              className="rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
-            >
-              <option value="">{t("Select a fantasy team")}</option>
-              {rosters.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            disabled={!newHome || !newAway || newHome === newAway}
-            className="rounded-2xl bg-azure px-4 py-3 text-sm font-semibold text-white transition hover:bg-azure-deep disabled:opacity-40"
-          >
-            {t("Add fixture")}
-          </button>
-        </form>
       </SectionCard>
 
-      <SectionCard title={t("Player stats")} description={t("Enter raw stats, fantavoto is calculated automatically.")}>
-        <label className="mb-4 block space-y-2 text-sm text-ink">
-          <span>{t("Fantasy team")}</span>
-          <select
-            value={statsRosterId}
-            onChange={(event) => setStatsRosterId(event.target.value)}
-            className="w-full max-w-sm rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure md:w-auto"
-          >
-            <option value="">{t("Select a fantasy team")}</option>
-            {rosters.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
+      {cupFixtures.length > 0 && (
+        <SectionCard title={t("Cup")} description={t("Cup fixtures for this matchday.")}>
+          <div className="space-y-3">
+            {cupFixtures.map((fixture) => (
+              <CupFixtureCard
+                key={fixture.id}
+                fixture={fixture}
+                lineups={cupLineups}
+                isOpen={openCupLineupFixtureId === fixture.id}
+                onToggle={() =>
+                  setOpenCupLineupFixtureId((current) => (current === fixture.id ? "" : fixture.id))
+                }
+                t={t}
+              />
             ))}
-          </select>
-        </label>
-
-        {rosterDetail && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm text-ink">
-              <thead className="text-xs uppercase tracking-wide text-ink-muted">
-                <tr>
-                  <th className="px-2 py-2">{t("Player")}</th>
-                  <th className="px-2 py-2">{t("Vote")}</th>
-                  <th className="px-2 py-2">{t("Goals")}</th>
-                  <th className="px-2 py-2">{t("Assists")}</th>
-                  <th className="px-2 py-2">{t("Yellow cards")}</th>
-                  <th className="px-2 py-2">{t("Red cards")}</th>
-                  <th className="px-2 py-2">{t("Penalties saved")}</th>
-                  <th className="px-2 py-2">{t("Penalties missed")}</th>
-                  <th className="px-2 py-2">{t("Own goals")}</th>
-                  <th className="px-2 py-2">{t("Clean sheet")}</th>
-                  <th className="px-2 py-2">{t("Fantavoto")}</th>
-                  <th className="px-2 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {rosterDetail.players.map((p) => {
-                  const form = forms[p.playerId] ?? emptyForm;
-                  const existing = existingByPlayer.get(p.playerId);
-                  return (
-                    <tr key={p.playerId} className="border-t border-line">
-                      <td className="px-2 py-2 text-ink">
-                        {p.fullName} <span className="text-xs text-ink-muted">({t(p.position)})</span>
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          step="0.5"
-                          value={form.vote}
-                          onChange={(e) => updateForm(p.playerId, { vote: e.target.value })}
-                          className="w-16 rounded-lg border border-line bg-surface-alt px-2 py-1 text-ink"
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          value={form.goals}
-                          onChange={(e) => updateForm(p.playerId, { goals: e.target.value })}
-                          className="w-14 rounded-lg border border-line bg-surface-alt px-2 py-1 text-ink"
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          value={form.assists}
-                          onChange={(e) => updateForm(p.playerId, { assists: e.target.value })}
-                          className="w-14 rounded-lg border border-line bg-surface-alt px-2 py-1 text-ink"
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          value={form.yellowCards}
-                          onChange={(e) => updateForm(p.playerId, { yellowCards: e.target.value })}
-                          className="w-14 rounded-lg border border-line bg-surface-alt px-2 py-1 text-ink"
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          value={form.redCards}
-                          onChange={(e) => updateForm(p.playerId, { redCards: e.target.value })}
-                          className="w-14 rounded-lg border border-line bg-surface-alt px-2 py-1 text-ink"
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          disabled={p.position !== "GK"}
-                          value={form.penaltiesSaved}
-                          onChange={(e) => updateForm(p.playerId, { penaltiesSaved: e.target.value })}
-                          className="w-14 rounded-lg border border-line bg-surface-alt px-2 py-1 text-ink disabled:opacity-30"
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          value={form.penaltiesMissed}
-                          onChange={(e) => updateForm(p.playerId, { penaltiesMissed: e.target.value })}
-                          className="w-14 rounded-lg border border-line bg-surface-alt px-2 py-1 text-ink"
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <input
-                          type="number"
-                          value={form.ownGoals}
-                          onChange={(e) => updateForm(p.playerId, { ownGoals: e.target.value })}
-                          className="w-14 rounded-lg border border-line bg-surface-alt px-2 py-1 text-ink"
-                        />
-                      </td>
-                      <td className="px-2 py-1 text-center">
-                        <input
-                          type="checkbox"
-                          disabled={p.position !== "GK"}
-                          checked={form.cleanSheet}
-                          onChange={(e) => updateForm(p.playerId, { cleanSheet: e.target.checked })}
-                          className="h-4 w-4 disabled:opacity-30"
-                        />
-                      </td>
-                      <td className="px-2 py-2 font-semibold text-azure-deep">{existing?.score ?? "—"}</td>
-                      <td className="px-2 py-1">
-                        <button
-                          type="button"
-                          onClick={() => handleSavePlayer(p.playerId)}
-                          disabled={savingPlayerId === p.playerId}
-                          className="rounded-lg bg-azure px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-azure-deep disabled:opacity-50"
-                        >
-                          {t("Save")}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
-        )}
-      </SectionCard>
+        </SectionCard>
+      )}
     </ModuleShell>
   );
 }

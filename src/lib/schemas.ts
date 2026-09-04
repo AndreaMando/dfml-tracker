@@ -41,6 +41,7 @@ export const financialTransactionTypeSchema = z.enum([
   "adjustment",
 ]);
 export const lineupRoleSchema = z.enum(["starter", "bench"]);
+export const competitionSchema = z.enum(["league", "cup"]);
 
 // ---- seasons ----
 export const createSeasonSchema = z.object({
@@ -207,6 +208,10 @@ export const updateScoreSchema = z.object(scoreFields);
 export const syncLineupsSchema = z.object({
   seasonId: uuidSchema,
   matchdayNumber: intSchema,
+  competition: competitionSchema.optional().default("league"),
+});
+export const syncCupCalendarSchema = z.object({
+  seasonId: uuidSchema,
 });
 export const importScoresSchema = z.object({
   seasonId: uuidSchema,
@@ -226,6 +231,24 @@ export const createFinancialTransactionSchema = z.object({
   type: financialTransactionTypeSchema,
   amount: numericSchema,
   description: z.string().nullable().optional(),
+});
+
+// ---- standings penalties ----
+export const createStandingsPenaltySchema = z.object({
+  seasonId: uuidSchema,
+  rosterId: uuidSchema,
+  points: z.coerce.number().int().positive(),
+  reason: z.string().nullable().optional(),
+});
+
+// ---- credits bonus rules ----
+export const setCreditsBonusRulesSchema = z.object({
+  rules: z.array(
+    z.object({
+      rank: intSchema,
+      bonus: numericSchema,
+    })
+  ),
 });
 
 // ---- trades ----

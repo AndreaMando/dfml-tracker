@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../../../../db";
 import { participants, players, rosterPlayers, rosters } from "../../../../../db/schema";
-import { computeStandings, creditsBonusForRank } from "../../../../../lib/standings";
+import { computeStandings, creditsBonusForRank, getCreditsBonusMap } from "../../../../../lib/standings";
 import { importRostersSchema } from "../../../../../lib/schemas";
 import { parseJsonBody } from "../../../../../lib/validate";
 
@@ -23,6 +23,7 @@ export async function POST(
 
   const standingsTable = await computeStandings(sourceSeasonId);
   const rankByRosterId = new Map(standingsTable.map((row, index) => [row.rosterId, index + 1]));
+  const bonusByRank = await getCreditsBonusMap(sourceSeasonId);
 
   const sourceRosters = await db
     .select()
@@ -42,6 +43,7 @@ export async function POST(
       .select({
         playerId: rosterPlayers.playerId,
         acquisitionPrice: rosterPlayers.acquisitionPrice,
+        acquisitionInitialValue: rosterPlayers.acquisitionInitialValue,
         fullName: players.fullName,
         status: players.status,
       })
@@ -53,7 +55,7 @@ export async function POST(
     const skippedTransferred = activePlayers.filter((p) => p.status === "transferred");
 
     const rank = rankByRosterId.get(oldRoster.id) ?? standingsTable.length;
-    const creditsBonus = creditsBonusForRank(rank);
+    const creditsBonus = creditsBonusForRank(rank, bonusByRank);
     const creditsRemaining = Number(oldRoster.creditsRemaining ?? 0) + creditsBonus;
 
     const result = await db.transaction(async (tx) => {
@@ -85,6 +87,7 @@ export async function POST(
             seasonId: targetSeasonId,
             acquiredAt: new Date(),
             acquisitionPrice: p.acquisitionPrice,
+            acquisitionInitialValue: p.acquisitionInitialValue,
             isActive: true,
           }))
         );

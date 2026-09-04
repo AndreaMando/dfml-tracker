@@ -4,6 +4,7 @@ import { db } from "../../../../../../db";
 import { players, rosterPlayers, rosters } from "../../../../../../db/schema";
 import { updateRosterPlayerSchema } from "../../../../../../lib/schemas";
 import { parseJsonBody } from "../../../../../../lib/validate";
+import { computeSaleRefund } from "../../../../../../lib/refund";
 
 export async function PATCH(
   request: Request,
@@ -79,21 +80,21 @@ export async function DELETE(
 
     const price = Number(existing.acquisitionPrice ?? 0);
     if (price !== 0) {
-      // Sale rule: paid less than the current quotation -> get back exactly
-      // what was paid; paid at or above it -> capped at the current
-      // quotation. Equivalent to min(price, currentValue). No quotation on
-      // record (e.g. manually added player) -> full refund. Exception: a
-      // player flagged priceUncertain (the asterisk on fantacalcio.it —
-      // long-term injury, transfer limbo, etc.) always refunds in full, no
-      // cap — league rule.
       const playerRows = await tx.select().from(players).where(eq(players.id, playerId));
       const player = playerRows[0];
       const currentValue = player?.currentValue !== undefined && player?.currentValue !== null
         ? Number(player.currentValue)
         : null;
-      const refund = player?.priceUncertain
-        ? price
-        : currentValue !== null ? Math.min(price, currentValue) : price;
+      const acquisitionInitialValue =
+        existing.acquisitionInitialValue !== null && existing.acquisitionInitialValue !== undefined
+          ? Number(existing.acquisitionInitialValue)
+          : null;
+      const refund = computeSaleRefund({
+        paid: price,
+        currentValue,
+        acquisitionInitialValue,
+        priceUncertain: player?.priceUncertain ?? false,
+      });
 
       const rosterRows = await tx.select().from(rosters).where(eq(rosters.id, rosterId));
       const roster = rosterRows[0];

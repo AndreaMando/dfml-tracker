@@ -41,7 +41,7 @@ export default function ParticipantsPage() {
       title={t("Participants")}
       description={t("Manage the league roster of teams and their current state.")}
     >
-      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {statusFilters.map((status) => (
             <FilterPill

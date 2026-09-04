@@ -1,6 +1,13 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql as sqlOp } from "drizzle-orm";
 import { db } from "../db";
-import { matchdayFixtures, participants, rosters, standings } from "../db/schema";
+import {
+  creditsBonusRules,
+  matchdayFixtures,
+  participants,
+  rosters,
+  standings,
+  standingsPenalties,
+} from "../db/schema";
 
 export type StandingsRow = {
   rosterId: string;
@@ -11,6 +18,7 @@ export type StandingsRow = {
   lost: number;
   points: number;
   totalScore: number;
+  penaltyPoints: number;
 };
 
 /**
@@ -23,7 +31,7 @@ export type StandingsRow = {
  */
 export async function computeStandings(seasonId: string): Promise<StandingsRow[]> {
   const seasonRosters = await db.select().from(rosters).where(eq(rosters.seasonId, seasonId));
-  const table = new Map<string, Omit<StandingsRow, "rosterName">>();
+  const table = new Map<string, Omit<StandingsRow, "rosterName" | "penaltyPoints">>();
   for (const roster of seasonRosters) {
     table.set(roster.id, {
       rosterId: roster.id,
@@ -94,7 +102,19 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
       return [r.id, participant?.teamName || participant?.displayName || r.name];
     })
   );
-  const rows = Array.from(table.values());
+  // Manual standings-point deductions (e.g. a rule violation penalty) —
+  // separate from financialTransactions, which only ever moves credits.
+  const penaltyRows = await db
+    .select({ rosterId: standingsPenalties.rosterId, total: sqlOp<number>`sum(${standingsPenalties.points})`.mapWith(Number) })
+    .from(standingsPenalties)
+    .where(eq(standingsPenalties.seasonId, seasonId))
+    .groupBy(standingsPenalties.rosterId);
+  const penaltyByRosterId = new Map(penaltyRows.map((r) => [r.rosterId, r.total]));
+
+  const rows = Array.from(table.values()).map((row) => {
+    const penaltyPoints = penaltyByRosterId.get(row.rosterId) ?? 0;
+    return { ...row, points: row.points - penaltyPoints, penaltyPoints };
+  });
 
   // Cache into standings table (upsert per season+roster).
   for (const row of rows) {
@@ -129,10 +149,24 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
     .sort((a, b) => b.points - a.points || b.totalScore - a.totalScore);
 }
 
-// End-of-season bonus credits by final placement, as displayed on the
-// Finance page: 1st–3rd +50, 4th–5th +75, 6th–8th +100. `rank` is 1-based.
-export function creditsBonusForRank(rank: number): number {
+// End-of-season bonus credits by final placement — editable per season via
+// the `credits_bonus_rules` table (Finance page); a season with no custom
+// rows falls back to the historical tiers: 1st–3rd +50, 4th–5th +75,
+// 6th–8th +100. `rank` is 1-based.
+function defaultCreditsBonusForRank(rank: number): number {
   if (rank <= 3) return 50;
   if (rank <= 5) return 75;
   return 100;
+}
+
+export async function getCreditsBonusMap(seasonId: string): Promise<Map<number, number>> {
+  const rows = await db
+    .select({ rank: creditsBonusRules.rank, bonus: creditsBonusRules.bonus })
+    .from(creditsBonusRules)
+    .where(eq(creditsBonusRules.seasonId, seasonId));
+  return new Map(rows.map((r) => [r.rank, Number(r.bonus)]));
+}
+
+export function creditsBonusForRank(rank: number, customBonusByRank?: Map<number, number>): number {
+  return customBonusByRank?.get(rank) ?? defaultCreditsBonusForRank(rank);
 }

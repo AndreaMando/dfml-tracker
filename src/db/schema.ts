@@ -41,6 +41,10 @@ export const fixtureStatusEnum = pgEnum("fixture_status", [
   "walkover_away",
 ]);
 
+// League = campionato; cup = coppa, a separate leghe.fantacalcio.it
+// competition id that runs in parallel on select league matchdays.
+export const competitionEnum = pgEnum("competition", ["league", "cup"]);
+
 export const financialTransactionTypeEnum = pgEnum(
   "financial_transaction_type",
   [
@@ -186,6 +190,12 @@ export const rosterPlayers = pgTable(
       .references(() => seasons.id, { onDelete: "cascade" }),
     acquiredAt: timestamp("acquired_at").notNull(),
     acquisitionPrice: numeric("acquisition_price", { precision: 10, scale: 2 }),
+    // players.initialValue at the moment THIS roster bought the player —
+    // snapshotted because a player's Q.In. changes every fantacalcio.it
+    // season, but the sale-refund rule must always compare against the
+    // Q.In. from the year of purchase, even for a player kept across
+    // multiple seasons via the roster-import carryover.
+    acquisitionInitialValue: numeric("acquisition_initial_value", { precision: 10, scale: 2 }),
     slotLockedUntilSessionId: uuid("slot_locked_until_session_id").references(
       () => marketSessions.id,
       { onDelete: "set null" }
@@ -233,6 +243,7 @@ export const matchdayLineups = pgTable(
       .notNull()
       .references(() => rosters.id, { onDelete: "cascade" }),
     matchdayNumber: integer("matchday_number").notNull(),
+    competition: competitionEnum("competition").notNull().default("league"),
     formation: text("formation"),
     submittedAt: timestamp("submitted_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -240,7 +251,8 @@ export const matchdayLineups = pgTable(
   (table) => ({
     rosterMatchdayUnique: uniqueIndex("matchday_lineups_roster_matchday_unique").on(
       table.rosterId,
-      table.matchdayNumber
+      table.matchdayNumber,
+      table.competition
     ),
   })
 );
@@ -271,6 +283,14 @@ export const matchdayFixtures = pgTable(
       .notNull()
       .references(() => seasons.id, { onDelete: "cascade" }),
     matchdayNumber: integer("matchday_number").notNull(),
+    // "league" (default) keeps every existing row's meaning unchanged; "cup"
+    // rows use the cup's own round numbering (1 = quarti, ..., 5 = finale).
+    competition: competitionEnum("competition").notNull().default("league"),
+    // Cup rows only: the real campionato matchday this cup round overlaps
+    // with (leghe.fantacalcio.it's own championshipMatchDay) — the value
+    // matchdayScores keys on, since votes are shared with the league for
+    // that real Serie A round.
+    linkedMatchdayNumber: integer("linked_matchday_number"),
     rosterIdHome: uuid("roster_id_home").references(() => rosters.id),
     rosterIdAway: uuid("roster_id_away").references(() => rosters.id),
     scoreHome: numeric("score_home", { precision: 10, scale: 2 }),
@@ -286,7 +306,8 @@ export const matchdayFixtures = pgTable(
       table.seasonId,
       table.matchdayNumber,
       table.rosterIdHome,
-      table.rosterIdAway
+      table.rosterIdAway,
+      table.competition
     ),
   })
 );
@@ -353,6 +374,43 @@ export const standings = pgTable(
     seasonRosterUnique: uniqueIndex("standings_season_roster_unique").on(
       table.seasonId,
       table.rosterId
+    ),
+  })
+);
+
+// Point deductions applied to a roster's final standings total — separate
+// from financialTransactions (which only ever moves credits). `points` is
+// entered as a positive number and always subtracted.
+export const standingsPenalties = pgTable("standings_penalties", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  seasonId: uuid("season_id")
+    .notNull()
+    .references(() => seasons.id, { onDelete: "cascade" }),
+  rosterId: uuid("roster_id")
+    .notNull()
+    .references(() => rosters.id, { onDelete: "cascade" }),
+  points: integer("points").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Editable end-of-season credits bonus by final rank (1st, 2nd, 3rd...),
+// per season. A season with no rows here falls back to the historical
+// 50/75/100 tiers (see src/lib/standings.ts).
+export const creditsBonusRules = pgTable(
+  "credits_bonus_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    rank: integer("rank").notNull(),
+    bonus: numeric("bonus", { precision: 10, scale: 2 }).notNull(),
+  },
+  (table) => ({
+    seasonRankUnique: uniqueIndex("credits_bonus_rules_season_rank_unique").on(
+      table.seasonId,
+      table.rank
     ),
   })
 );

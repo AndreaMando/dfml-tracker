@@ -9,10 +9,16 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const seasonId = searchParams.get("seasonId");
   const matchdayNumber = searchParams.get("matchdayNumber");
+  const linkedMatchdayNumber = searchParams.get("linkedMatchdayNumber");
+  // Every existing caller expects campionato fixtures only — default to
+  // "league" so adding cup rows to this table never changes their results.
+  const competition = searchParams.get("competition") ?? "league";
 
   const conditions = [
     ...(seasonId ? [eq(matchdayFixtures.seasonId, seasonId)] : []),
     ...(matchdayNumber ? [eq(matchdayFixtures.matchdayNumber, Number(matchdayNumber))] : []),
+    ...(linkedMatchdayNumber ? [eq(matchdayFixtures.linkedMatchdayNumber, Number(linkedMatchdayNumber))] : []),
+    eq(matchdayFixtures.competition, competition as "league" | "cup"),
   ];
 
   const rows = await db

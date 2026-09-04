@@ -25,6 +25,7 @@ export async function GET(
     .select({
       rosterPlayerId: rosterPlayers.id,
       acquisitionPrice: rosterPlayers.acquisitionPrice,
+      acquisitionInitialValue: rosterPlayers.acquisitionInitialValue,
       acquiredAt: rosterPlayers.acquiredAt,
       isActive: rosterPlayers.isActive,
       playerId: players.id,

@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../../db";
 import {
   lineupPlayers,
+  matchdayFixtures,
   matchdayLineups,
   matchdayScores,
   participants,
@@ -16,10 +17,33 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const seasonId = searchParams.get("seasonId");
   const matchdayNumber = searchParams.get("matchdayNumber");
+  // Every existing caller expects campionato lineups only — default to
+  // "league" so cup rows never change their results.
+  const competition = (searchParams.get("competition") ?? "league") as "league" | "cup";
 
   if (!seasonId || !matchdayNumber) {
     const rows = await db.select().from(matchdayLineups);
     return NextResponse.json(rows);
+  }
+
+  // matchdayScores is keyed on the real Serie A round, not the cup's own
+  // round number — for the cup, look that up from the fixture we already
+  // stored it on (linkedMatchdayNumber) instead of using matchdayNumber
+  // directly (which for the league is the same value anyway).
+  let realMatchdayNumber = Number(matchdayNumber);
+  if (competition === "cup") {
+    const [cupFixture] = await db
+      .select({ linkedMatchdayNumber: matchdayFixtures.linkedMatchdayNumber })
+      .from(matchdayFixtures)
+      .where(
+        and(
+          eq(matchdayFixtures.seasonId, seasonId),
+          eq(matchdayFixtures.matchdayNumber, Number(matchdayNumber)),
+          eq(matchdayFixtures.competition, "cup")
+        )
+      )
+      .limit(1);
+    if (cupFixture?.linkedMatchdayNumber) realMatchdayNumber = cupFixture.linkedMatchdayNumber;
   }
 
   const lineupRows = await db
@@ -36,7 +60,11 @@ export async function GET(request: Request) {
     .innerJoin(rosters, eq(rosters.id, matchdayLineups.rosterId))
     .innerJoin(participants, eq(participants.id, rosters.participantId))
     .where(
-      and(eq(matchdayLineups.seasonId, seasonId), eq(matchdayLineups.matchdayNumber, Number(matchdayNumber)))
+      and(
+        eq(matchdayLineups.seasonId, seasonId),
+        eq(matchdayLineups.matchdayNumber, Number(matchdayNumber)),
+        eq(matchdayLineups.competition, competition)
+      )
     );
 
   const result = await Promise.all(
@@ -58,7 +86,7 @@ export async function GET(request: Request) {
           and(
             eq(matchdayScores.playerId, lineupPlayers.playerId),
             eq(matchdayScores.seasonId, seasonId),
-            eq(matchdayScores.matchdayNumber, Number(matchdayNumber))
+            eq(matchdayScores.matchdayNumber, realMatchdayNumber)
           )
         )
         .where(eq(lineupPlayers.lineupId, lineup.lineupId));

@@ -26,9 +26,9 @@ const navigation = [
   { href: "/players", labelKey: "Players", icon: Trophy },
   { href: "/rosters", labelKey: "Rosters", icon: ClipboardList },
   { href: "/market", labelKey: "Market", icon: ShoppingCart },
-  { href: "/scores", labelKey: "Scores", icon: BadgeDollarSign },
+  { href: "/scores", labelKey: "Results", icon: BadgeDollarSign },
   { href: "/standings", labelKey: "Standings", icon: Trophy },
-  { href: "/finance", labelKey: "Finance", icon: CircleDollarSign },
+  { href: "/finance", labelKey: "Finance & Penalties", icon: CircleDollarSign },
   { href: "/history", labelKey: "History", icon: History },
 ];
 
@@ -77,42 +77,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    fetch("/api/seasons")
-      .then((res) => res.json())
-      .then(async (seasons: { id: string; name: string; status: string }[]) => {
-        const active = seasons.find((s) => s.status === "active") ?? seasons[0];
-        if (!active) return;
+    function loadTicker() {
+      fetch("/api/seasons")
+        .then((res) => res.json())
+        .then(async (seasons: { id: string; name: string; status: string }[]) => {
+          const active = seasons.find((s) => s.status === "active") ?? seasons[0];
+          if (!active) return;
 
-        const [participants, currentMatchday, marketSessions] = await Promise.all([
-          fetch("/api/participants")
-            .then((res) => res.json())
-            .then((rows: { seasonId: string }[]) => rows.filter((r) => r.seasonId === active.id)),
-          fetch(`/api/fixtures/current-matchday?seasonId=${active.id}`).then((res) => res.json()) as Promise<{
-            matchday: number;
-          }>,
-          fetch(`/api/market?seasonId=${active.id}`).then((res) => res.json()) as Promise<
-            { startDate: string | null; endDate: string | null }[]
-          >,
-        ]);
+          const [participants, currentMatchday, marketSessions] = await Promise.all([
+            fetch("/api/participants")
+              .then((res) => res.json())
+              .then((rows: { seasonId: string }[]) => rows.filter((r) => r.seasonId === active.id)),
+            fetch(`/api/fixtures/current-matchday?seasonId=${active.id}`).then((res) => res.json()) as Promise<{
+              matchday: number;
+            }>,
+            fetch(`/api/market?seasonId=${active.id}`).then((res) => res.json()) as Promise<
+              { startDate: string | null; endDate: string | null }[]
+            >,
+          ]);
 
-        const matchday = currentMatchday.matchday;
+          const matchday = currentMatchday.matchday;
 
-        const now = Date.now();
-        const marketOpen = marketSessions.some((s) => {
-          if (!s.startDate || !s.endDate) return false;
-          const start = new Date(s.startDate).getTime();
-          const end = new Date(s.endDate).getTime();
-          return now >= start && now <= end;
+          const now = Date.now();
+          const marketOpen = marketSessions.some((s) => {
+            if (!s.startDate || !s.endDate) return false;
+            const start = new Date(s.startDate).getTime();
+            const end = new Date(s.endDate).getTime();
+            return now >= start && now <= end;
+          });
+
+          setTicker({
+            matchday,
+            seasonLabel: active.name,
+            participantsCount: participants.length,
+            marketOpen,
+          });
         });
+    }
 
-        setTicker({
-          matchday,
-          seasonLabel: active.name,
-          participantsCount: participants.length,
-          marketOpen,
-        });
-      });
-  }, []);
+    // AppShell stays mounted across client-side navigations (it's in the
+    // root layout), so a mount-only fetch never sees a market session
+    // created after the first load. Refresh on every navigation, plus a
+    // periodic poll in case the user stays on one page (e.g. Market) after
+    // opening/closing a session there.
+    loadTicker();
+    const interval = setInterval(loadTicker, 60_000);
+    return () => clearInterval(interval);
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">

@@ -29,11 +29,13 @@ function isRealVote(v: number | null): v is number {
 export async function POST(request: Request) {
   const parsed = await parseJsonBody(request, syncLineupsSchema);
   if ("response" in parsed) return parsed.response;
-  const { seasonId, matchdayNumber } = parsed.data;
+  const { seasonId, matchdayNumber, competition } = parsed.data;
 
-  const competitionId = process.env.LEGHE_COMPETITION_ID;
+  const competitionId =
+    competition === "cup" ? process.env.LEGHE_CUP_COMPETITION_ID : process.env.LEGHE_COMPETITION_ID;
+  const envVarName = competition === "cup" ? "LEGHE_CUP_COMPETITION_ID" : "LEGHE_COMPETITION_ID";
   if (!competitionId) {
-    return NextResponse.json({ error: "LEGHE_COMPETITION_ID non configurato in .env.local" }, { status: 500 });
+    return NextResponse.json({ error: `${envVarName} non configurato in .env.local` }, { status: 500 });
   }
 
   let calendar;
@@ -77,7 +79,13 @@ export async function POST(request: Request) {
   const fixtures = await db
     .select()
     .from(matchdayFixtures)
-    .where(and(eq(matchdayFixtures.seasonId, seasonId), eq(matchdayFixtures.matchdayNumber, matchdayNumber)));
+    .where(
+      and(
+        eq(matchdayFixtures.seasonId, seasonId),
+        eq(matchdayFixtures.matchdayNumber, matchdayNumber),
+        eq(matchdayFixtures.competition, competition)
+      )
+    );
 
   let lineupsUpdated = 0;
   let playersScored = 0;
@@ -110,11 +118,12 @@ export async function POST(request: Request) {
           seasonId,
           rosterId,
           matchdayNumber,
+          competition,
           formation: side.mdl,
           submittedAt: new Date(),
         })
         .onConflictDoUpdate({
-          target: [matchdayLineups.rosterId, matchdayLineups.matchdayNumber],
+          target: [matchdayLineups.rosterId, matchdayLineups.matchdayNumber, matchdayLineups.competition],
           set: { formation: side.mdl, submittedAt: new Date() },
         })
         .returning();
@@ -159,7 +168,11 @@ export async function POST(request: Request) {
           fixtureId: fixture.id,
           rosterId,
           playerId: player.id,
-          matchdayNumber,
+          // The real Serie A round this vote belongs to — for the cup this
+          // differs from `matchdayNumber` (the cup's own round number), and
+          // is what matchdayScores is keyed on so league and cup share the
+          // same underlying vote data for that real matchday.
+          matchdayNumber: championshipMatchDay,
           vote: vote !== null ? vote.toString() : null,
           score: score !== null ? score.toString() : null,
         });

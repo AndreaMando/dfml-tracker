@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
 import { FilterPill } from "../../components/filter-pill";
-import { Tabs } from "../../components/tabs";
 import { useTranslation } from "../../lib/i18n";
 
 type Roster = {
@@ -20,11 +19,6 @@ const filterOptions = ["all", "active", "inactive"];
 
 export default function RostersPage() {
   const { t } = useTranslation();
-  const tabs = [
-    { id: "grid", label: t("Grid") },
-    { id: "table", label: t("Table") },
-  ];
-  const [activeTab, setActiveTab] = useState("grid");
   const [activeFilter, setActiveFilter] = useState("all");
   const [rosters, setRosters] = useState<Roster[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,20 +54,17 @@ export default function RostersPage() {
             />
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-          <Link
-            href="/rosters/new"
-            className="rounded-2xl border border-azure/20 bg-azure-soft px-4 py-2 text-sm font-semibold text-azure-deep transition hover:bg-azure/10"
-          >
-            {t("Create roster")}
-          </Link>
-        </div>
+        <Link
+          href="/rosters/new"
+          className="rounded-2xl border border-azure/20 bg-azure-soft px-4 py-2 text-sm font-semibold text-azure-deep transition hover:bg-azure/10"
+        >
+          {t("Create roster")}
+        </Link>
       </div>
 
       {loading ? (
         <p className="text-sm text-ink-muted">{t("Loading")}...</p>
-      ) : activeTab === "grid" ? (
+      ) : (
         <div className="grid gap-4 lg:grid-cols-3">
           {filteredRosters.map((roster) => (
             <Link
@@ -102,35 +93,6 @@ export default function RostersPage() {
               </div>
             </Link>
           ))}
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-3xl border border-line bg-surface">
-          <table className="min-w-full text-left text-sm text-ink">
-            <thead className="bg-surface-alt text-ink-muted">
-              <tr>
-                <th className="px-4 py-3">{t("Roster")}</th>
-                <th className="px-4 py-3">{t("Manager")}</th>
-                <th className="px-4 py-3">{t("Players")}</th>
-                <th className="px-4 py-3">{t("Credits")}</th>
-                <th className="px-4 py-3">{t("Status")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRosters.map((roster) => (
-                <tr key={roster.id} className="border-t border-line">
-                  <td className="px-4 py-3 text-ink">
-                    <Link href={`/rosters/${roster.id}`} className="hover:text-azure-deep">
-                      {roster.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">{roster.participantName ?? "—"}</td>
-                  <td className="px-4 py-3">{roster.playerCount}</td>
-                  <td className="px-4 py-3">{roster.creditsRemaining ?? "—"}</td>
-                  <td className="px-4 py-3">{roster.isActive ? t("Active") : t("Inactive")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
     </ModuleShell>

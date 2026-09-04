@@ -42,7 +42,7 @@ export async function POST(
       const newPrice = Number(price ?? 0);
       const [updated] = await tx
         .update(rosterPlayers)
-        .set({ acquisitionPrice: price, isActive: true })
+        .set({ acquisitionPrice: price, acquisitionInitialValue: player.initialValue, isActive: true })
         .where(eq(rosterPlayers.id, existing[0].id))
         .returning();
       if (oldPrice !== newPrice) {
@@ -82,6 +82,7 @@ export async function POST(
         seasonId: roster.seasonId,
         acquiredAt: new Date(),
         acquisitionPrice: price,
+        acquisitionInitialValue: player.initialValue,
         isActive: true,
       })
       .returning();

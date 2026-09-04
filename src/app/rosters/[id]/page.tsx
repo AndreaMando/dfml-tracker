@@ -8,6 +8,7 @@ import { Tabs } from "../../../components/tabs";
 import { FilterPill } from "../../../components/filter-pill";
 import { RoleBadge } from "../../../components/role-badge";
 import { useTranslation } from "../../../lib/i18n";
+import { computeSaleRefund } from "../../../lib/refund";
 
 const POSITION_CAPS: Record<CompositionRow["position"], number> = { GK: 3, DF: 8, MF: 8, FW: 6 };
 
@@ -20,6 +21,7 @@ type CompositionRow = {
   currentValue: string | null;
   fvm: string | null;
   acquisitionPrice: string | null;
+  acquisitionInitialValue: string | null;
   priceUncertain: boolean;
 };
 
@@ -152,16 +154,16 @@ export default function RosterDetailPage() {
     await loadRoster();
   }
 
-  // Mirrors the server-side rule in DELETE /api/rosters/[id]/players/[playerId]:
-  // refund = min(acquisitionPrice, current quotation); full refund if the
-  // player has no quotation on record, or if flagged priceUncertain (the
-  // asterisk on fantacalcio.it — long-term injury, transfer limbo, etc.).
   function computeRefund(player: CompositionRow) {
-    const paid = Number(player.acquisitionPrice ?? 0);
-    if (player.priceUncertain) return paid;
-    const currentValue =
-      player.currentValue !== null && player.currentValue !== undefined ? Number(player.currentValue) : null;
-    return currentValue !== null ? Math.min(paid, currentValue) : paid;
+    return computeSaleRefund({
+      paid: Number(player.acquisitionPrice ?? 0),
+      currentValue: player.currentValue !== null && player.currentValue !== undefined ? Number(player.currentValue) : null,
+      acquisitionInitialValue:
+        player.acquisitionInitialValue !== null && player.acquisitionInitialValue !== undefined
+          ? Number(player.acquisitionInitialValue)
+          : null,
+      priceUncertain: player.priceUncertain,
+    });
   }
 
   // Quotations are only refreshed by manually importing from fantacalcio.it
