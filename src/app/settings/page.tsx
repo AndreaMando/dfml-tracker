@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Lock, X } from "lucide-react";
 import { ModuleShell } from "../../components/module-shell";
 import { SectionCard } from "../../components/section-card";
 import { useTranslation } from "../../lib/i18n";
@@ -16,6 +17,7 @@ function formatLockout(lockedUntil: number, t: (key: string) => string): string 
 
 export default function SettingsPage() {
   const { t } = useTranslation();
+  const router = useRouter();
 
   // `null` = not checked yet, `false` = needs the password modal, `true` = in.
   const [authorized, setAuthorized] = useState<boolean | null>(null);
@@ -88,8 +90,9 @@ export default function SettingsPage() {
 
   async function handleLogout() {
     await fetch("/api/settings/logout", { method: "POST" });
-    setAuthorized(false);
-    setData(null);
+    // Staying on /settings after logout just re-triggers the password modal
+    // immediately — send the user back to the dashboard instead.
+    router.push("/");
   }
 
   async function handleSave(event: React.FormEvent) {
@@ -185,8 +188,17 @@ export default function SettingsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
           <form
             onSubmit={handleLogin}
-            className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 shadow-lg"
+            className="relative w-full max-w-sm rounded-3xl border border-line bg-surface p-6 shadow-lg"
           >
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              aria-label={t("Back to dashboard")}
+              className="absolute right-4 top-4 text-ink-muted transition hover:text-ink"
+            >
+              <X size={18} />
+            </button>
+
             <div className="flex items-center gap-2 text-ink">
               <Lock size={18} />
               <h3 className="text-lg font-semibold">{t("Protected page")}</h3>
