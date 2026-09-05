@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModuleShell } from "../../../components/module-shell";
+import { ChampionCaption, getChampionBadges, useChampions } from "../../../components/champion-badge";
 import { useTranslation } from "../../../lib/i18n";
 
 type Roster = { id: string; name: string | null; creditsRemaining: string | null };
 
 type ParticipantDetail = {
   id: string;
+  seasonId: string;
+  userId: string;
   displayName: string;
   teamName: string | null;
   isActive: boolean | null;
@@ -41,6 +44,9 @@ export default function ParticipantDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const champions = useChampions(participant?.seasonId);
+  const championBadges = getChampionBadges(champions, participant?.userId);
 
   async function handleSave(event: React.FormEvent) {
     event.preventDefault();
@@ -84,7 +90,15 @@ export default function ParticipantDetailPage() {
       backHref="/participants"
       backLabel={t("Back to participants")}
     >
-      <div className="mt-6 space-y-6">
+      <div className="mt-1 space-y-6">
+        {championBadges.length > 0 && (
+          <div className="space-y-1">
+            {championBadges.map((badge, i) => (
+              <ChampionCaption key={i} entry={badge} t={t} large />
+            ))}
+          </div>
+        )}
+
         <div className="rounded-3xl border border-line bg-surface p-5">
           <h3 className="text-base font-semibold text-ink">{t("Rosters")}</h3>
           {participant.rosters.length === 0 ? (

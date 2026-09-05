@@ -18,6 +18,9 @@ export async function GET() {
       creditsRemaining: rosters.creditsRemaining,
       createdAt: rosters.createdAt,
       participantName: participants.displayName,
+      // Cross-season-stable identity, used to badge a participant's roster
+      // with a previous season's league/cup win regardless of team renames.
+      participantUserId: participants.userId,
       isActive: participants.isActive,
       playerCount: sqlOp<number>`count(${rosterPlayers.id})`.mapWith(Number),
     })
@@ -27,7 +30,7 @@ export async function GET() {
       rosterPlayers,
       eq(rosterPlayers.rosterId, rosters.id)
     )
-    .groupBy(rosters.id, participants.displayName, participants.teamName, participants.isActive);
+    .groupBy(rosters.id, participants.displayName, participants.teamName, participants.userId, participants.isActive);
 
   return NextResponse.json(rows);
 }

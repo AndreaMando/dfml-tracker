@@ -107,20 +107,20 @@ export default function PlayersPage() {
   const [sortKey, setSortKey] = useState<StatSortKey>("totalScore");
   const [sortDesc, setSortDesc] = useState(true);
 
-  // Sync: fantaasta (listone) + Fantacalcio.it (voti giornata), fired together.
+  // Sync: listone (apileague.fantacalcio.it) + Fantacalcio.it (voti giornata), fired together.
   // fantacalcioSeason/fantacalcioMatchday (the external site's own identifiers)
   // are derived from our own season/matchday — the two have never actually
   // diverged, no reason to make the user enter the same matchday twice.
   const [matchdayNumber, setMatchdayNumber] = useState(1);
   const [maxMatchday, setMaxMatchday] = useState(38);
   const [syncingAll, setSyncingAll] = useState(false);
-  const [fantaastaResult, setFantaastaResult] = useState<{
+  const [listoneResult, setListoneResult] = useState<{
     created: number;
     updated: number;
     reactivated: number;
     markedTransferred: number;
   } | null>(null);
-  const [fantaastaError, setFantaastaError] = useState("");
+  const [listoneError, setListoneError] = useState("");
   const [importResult, setImportResult] = useState<{ imported: number; created: string[] } | null>(null);
   const [importError, setImportError] = useState("");
 
@@ -177,13 +177,13 @@ export default function PlayersPage() {
   async function handleSyncAll(event: React.FormEvent) {
     event.preventDefault();
     setSyncingAll(true);
-    setFantaastaError("");
-    setFantaastaResult(null);
+    setListoneError("");
+    setListoneResult(null);
     setImportError("");
     setImportResult(null);
 
-    const [fantaastaRes, importRes] = await Promise.allSettled([
-      fetch("/api/players/sync-fantaasta", { method: "POST" }),
+    const [listoneRes, importRes] = await Promise.allSettled([
+      fetch("/api/players/sync-listone", { method: "POST" }),
       fetch("/api/scores/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -196,16 +196,16 @@ export default function PlayersPage() {
       }),
     ]);
 
-    if (fantaastaRes.status === "fulfilled") {
-      const data = await fantaastaRes.value.json();
-      if (fantaastaRes.value.ok) {
-        setFantaastaResult(data);
+    if (listoneRes.status === "fulfilled") {
+      const data = await listoneRes.value.json();
+      if (listoneRes.value.ok) {
+        setListoneResult(data);
         await loadPlayers();
       } else {
-        setFantaastaError(data.error ?? t("Sync failed"));
+        setListoneError(data.error ?? t("Sync failed"));
       }
     } else {
-      setFantaastaError(t("Sync failed"));
+      setListoneError(t("Sync failed"));
     }
 
     if (importRes.status === "fulfilled") {
@@ -349,7 +349,7 @@ export default function PlayersPage() {
 
       <SectionCard
         title={t("Sync players & stats")}
-        description={t("Update the listone from fantaasta and import matchday votes from Fantacalcio.it, in parallel.")}
+        description={t("Update the listone and import matchday votes from Fantacalcio.it, in parallel.")}
       >
         <form onSubmit={handleSyncAll} className="flex flex-wrap items-end gap-3">
           <label className="block space-y-2 text-sm text-ink">
@@ -388,15 +388,15 @@ export default function PlayersPage() {
             {syncingAll ? t("Syncing") + "..." : t("Sync all")}
           </button>
         </form>
-        {fantaastaError && (
+        {listoneError && (
           <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {t("Sync from fantaasta")}: {fantaastaError}
+            {t("Sync listone")}: {listoneError}
           </p>
         )}
-        {fantaastaResult && (
+        {listoneResult && (
           <p className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {t("Sync summary")}: {t("New")} {fantaastaResult.created} · {t("Updated")} {fantaastaResult.updated} ·{" "}
-            {t("Transferred out")} {fantaastaResult.markedTransferred} · {t("Reactivated")} {fantaastaResult.reactivated}
+            {t("Sync summary")}: {t("New")} {listoneResult.created} · {t("Updated")} {listoneResult.updated} ·{" "}
+            {t("Transferred out")} {listoneResult.markedTransferred} · {t("Reactivated")} {listoneResult.reactivated}
           </p>
         )}
         {importError && (

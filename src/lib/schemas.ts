@@ -48,6 +48,8 @@ export const createSeasonSchema = z.object({
   name: z.string().min(1),
   year: intSchema,
   status: seasonStatusSchema.optional(),
+  leagueCompetitionId: z.string().min(1).nullable().optional(),
+  cupCompetitionId: z.string().min(1).nullable().optional(),
 });
 export const updateSeasonSchema = z.object({
   name: z.string().min(1).optional(),
@@ -55,6 +57,8 @@ export const updateSeasonSchema = z.object({
   status: seasonStatusSchema.optional(),
   startDate: z.string().nullable().optional(),
   endDate: z.string().nullable().optional(),
+  leagueCompetitionId: z.string().min(1).nullable().optional(),
+  cupCompetitionId: z.string().min(1).nullable().optional(),
 });
 
 // ---- participants ----
@@ -160,7 +164,6 @@ export const updateFixtureSchema = z.object({
 });
 export const syncFixtureResultsSchema = z.object({
   seasonId: uuidSchema,
-  competitionId: z.union([z.string(), z.number()]),
 });
 
 // ---- lineups ----
@@ -261,4 +264,13 @@ export const createTradeSchema = z.object({
   creditsDeltaA: nullableNumericSchema.optional(),
   creditsDeltaB: nullableNumericSchema.optional(),
   notes: z.string().nullable().optional(),
+});
+
+// ---- settings ----
+export const settingsLoginSchema = z.object({
+  password: z.string().min(1),
+});
+export const updateAppSettingsSchema = z.object({
+  legheAppKey: z.string().min(1).optional(),
+  legheAuthToken: z.string().min(1).optional(),
 });

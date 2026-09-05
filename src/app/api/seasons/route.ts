@@ -20,6 +20,8 @@ export async function POST(request: Request) {
       name: body.name,
       year: body.year,
       status: body.status ?? "draft",
+      leagueCompetitionId: body.leagueCompetitionId ?? null,
+      cupCompetitionId: body.cupCompetitionId ?? null,
     })
     .returning();
 

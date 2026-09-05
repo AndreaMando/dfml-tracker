@@ -7,6 +7,7 @@ import { ModuleShell } from "../../../components/module-shell";
 import { Tabs } from "../../../components/tabs";
 import { FilterPill } from "../../../components/filter-pill";
 import { RoleBadge } from "../../../components/role-badge";
+import { ChampionCaption, getChampionBadges, useChampions } from "../../../components/champion-badge";
 import { useTranslation } from "../../../lib/i18n";
 import { computeSaleRefund } from "../../../lib/refund";
 
@@ -27,9 +28,10 @@ type CompositionRow = {
 
 type RosterDetail = {
   id: string;
+  seasonId: string;
   name: string | null;
   creditsRemaining: string | null;
-  participant: { id: string; displayName: string } | null;
+  participant: { id: string; displayName: string; userId: string } | null;
   players: CompositionRow[];
 };
 
@@ -69,6 +71,9 @@ export default function RosterDetailPage() {
   const [sellTarget, setSellTarget] = useState<CompositionRow | null>(null);
   const [selling, setSelling] = useState(false);
   const [syncingPlayerId, setSyncingPlayerId] = useState("");
+
+  const champions = useChampions(roster?.seasonId);
+  const championBadges = getChampionBadges(champions, roster?.participant?.userId);
 
   function loadRoster() {
     return fetch(`/api/rosters/${id}`)
@@ -172,7 +177,7 @@ export default function RosterDetailPage() {
   // the sync is fast (~1s, batched), no real cost to doing it on every sale.
   async function handleOpenSell(player: CompositionRow) {
     setSyncingPlayerId(player.playerId);
-    await fetch("/api/players/sync-fantaasta", { method: "POST" }).catch(() => null);
+    await fetch("/api/players/sync-listone", { method: "POST" }).catch(() => null);
     const freshRoster: RosterDetail = await fetch(`/api/rosters/${id}`).then((res) => res.json());
     setRoster(freshRoster);
     const freshPlayer = freshRoster.players.find((p) => p.playerId === player.playerId);
@@ -218,7 +223,15 @@ export default function RosterDetailPage() {
       backHref="/rosters"
       backLabel={t("Back to rosters")}
     >
-      <div className="mt-6 space-y-6">
+      <div className="mt-1 space-y-6">
+        {championBadges.length > 0 && (
+          <div className="space-y-1">
+            {championBadges.map((badge, i) => (
+              <ChampionCaption key={i} entry={badge} t={t} large />
+            ))}
+          </div>
+        )}
+
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl border border-line bg-surface p-4">
             <p className="text-sm text-ink-muted">{t("Players")}</p>

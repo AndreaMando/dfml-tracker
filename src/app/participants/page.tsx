@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
 import { FilterPill } from "../../components/filter-pill";
+import { ChampionIcon, type ChampionsInfo, getChampionBadges } from "../../components/champion-badge";
 import { useTranslation } from "../../lib/i18n";
 
 type Participant = {
   id: string;
+  seasonId: string;
+  userId: string;
   displayName: string;
   teamName: string | null;
   isActive: boolean | null;
@@ -17,9 +20,10 @@ const statusFilters = ["all", "active", "inactive"];
 
 export default function ParticipantsPage() {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("active");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [championsBySeasonId, setChampionsBySeasonId] = useState<Map<string, ChampionsInfo>>(new Map());
 
   useEffect(() => {
     fetch("/api/participants")
@@ -27,6 +31,19 @@ export default function ParticipantsPage() {
       .then(setParticipants)
       .finally(() => setLoading(false));
   }, []);
+
+  // Every season's participants show on this one page (no season filter),
+  // so batch one champions lookup per distinct season rather than per row.
+  useEffect(() => {
+    const seasonIds = [...new Set(participants.map((p) => p.seasonId))];
+    Promise.all(
+      seasonIds.map((seasonId) =>
+        fetch(`/api/seasons/champions?seasonId=${seasonId}`)
+          .then((res) => res.json())
+          .then((data: ChampionsInfo) => [seasonId, data] as const)
+      )
+    ).then((entries) => setChampionsBySeasonId(new Map(entries)));
+  }, [participants]);
 
   const filteredParticipants = useMemo(() => {
     return participants.filter((item) => {
@@ -64,23 +81,38 @@ export default function ParticipantsPage() {
         <p className="text-sm text-ink-muted">{t("Loading")}...</p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
-          {filteredParticipants.map((participant) => (
-            <Link
-              key={participant.id}
-              href={`/participants/${participant.id}`}
-              className="rounded-3xl border border-line bg-surface p-5 transition hover:-translate-y-0.5 hover:border-azure/40"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold text-ink">{participant.displayName}</h2>
-                  <p className="mt-1 text-sm text-ink-muted">{participant.teamName ?? "—"}</p>
+          {filteredParticipants.map((participant) => {
+            const champions = championsBySeasonId.get(participant.seasonId) ?? null;
+            const championBadges = getChampionBadges(champions, participant.userId);
+            return (
+              <Link
+                key={participant.id}
+                href={`/participants/${participant.id}`}
+                className="rounded-3xl border border-line bg-surface p-5 transition hover:-translate-y-0.5 hover:border-azure/40"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold text-ink">{participant.displayName}</h2>
+                    <p className="mt-1 text-sm text-ink-muted">{participant.teamName ?? "—"}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-azure/20 bg-azure-soft px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-azure-deep">
+                    {participant.isActive ? t("Active") : t("Inactive")}
+                  </span>
                 </div>
-                <span className="rounded-full border border-azure/20 bg-azure-soft px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-azure-deep">
-                  {participant.isActive ? t("Active") : t("Inactive")}
-                </span>
-              </div>
-            </Link>
-          ))}
+                {championBadges.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {championBadges.map((badge, i) => (
+                      <ChampionIcon
+                        key={i}
+                        type={badge.type}
+                        label={`${t(badge.type === "league" ? "League winner" : "Cup winner")} ${badge.seasonName}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </Link>
+            );
+          })}
         </div>
       )}
     </ModuleShell>

@@ -32,10 +32,12 @@ npm run dev
 | Variable | Required | Purpose |
 |---|---|---|
 | `POSTGRES_URL` | yes | Neon/Postgres connection string |
-| `LEGHE_APP_KEY`, `LEGHE_AUTH_TOKEN`, `LEGHE_COMPETITION_ID` | for results sync | `apileague.fantacalcio.it` credentials (from a logged-in browser session) |
-| `FANTAASTA_AUTH_TOKEN` | for listone sync | `leghe.fantacalcio.it/servizi/fantaasta` credential (different auth scheme, single hex header) |
+| `SETTINGS_PASSWORD` | yes | Password behind the `/settings` page's modal |
+| `SETTINGS_SESSION_SECRET` | yes | Signs the settings-page session cookie |
 
-All three are personal-session tokens with no public signup; capture fresh ones from DevTools on a logged-in `leghe.fantacalcio.it` page if a sync starts returning 401.
+The leghe.fantacalcio.it App_Key/auth token (used for calendar, formations, results and the listone sync — same host and credentials for all of it) are **not** env vars — they expire and need updating without a redeploy, so they're stored in the DB and edited from the protected `/settings` page. Capture fresh ones from DevTools (`app_key` / `authorization` request headers) on a logged-in `leghe.fantacalcio.it` page if a sync starts returning 401.
+
+The leghe.fantacalcio.it competition IDs (campionato, coppa) are **not** env vars either — they change every season and are set in the "Create Season" form, stored on the `seasons` row (`leagueCompetitionId`, `cupCompetitionId`).
 
 ## Scripts
 

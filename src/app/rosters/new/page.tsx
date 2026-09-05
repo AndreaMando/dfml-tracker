@@ -43,7 +43,7 @@ export default function RosterCreatePage() {
     if (availableParticipants[0]) {
       setParticipantId(availableParticipants[0].id);
     }
-  }, [availableParticipants]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [availableParticipants]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

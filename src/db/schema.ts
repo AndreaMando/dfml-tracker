@@ -67,6 +67,10 @@ export const seasons = pgTable("seasons", {
   status: seasonStatusEnum("status").notNull().default("draft"),
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
+  // leghe.fantacalcio.it competition IDs change every season — kept here
+  // instead of env vars so a new season doesn't require an env var/redeploy.
+  leagueCompetitionId: text("league_competition_id"),
+  cupCompetitionId: text("cup_competition_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -692,3 +696,14 @@ export const financialTransactionsRelations = relations(
     }),
   })
 );
+
+// Generic key-value store for secrets/config that used to be env vars but
+// change too often (leghe.fantacalcio.it session tokens) or shouldn't need a
+// redeploy to update — edited from the protected /settings page instead.
+// Also doubles as storage for the settings login lockout counter, since
+// serverless functions have no shared memory across invocations.
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

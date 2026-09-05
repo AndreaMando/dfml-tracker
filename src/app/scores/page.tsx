@@ -239,7 +239,7 @@ export default function ScoresPage() {
     fetch("/api/fixtures/sync-results", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seasonId, competitionId: "26549" }),
+      body: JSON.stringify({ seasonId }),
     })
       .then(() => loadFixtures())
       .catch(() => null);

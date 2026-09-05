@@ -9,6 +9,7 @@ import {
   participants,
   players,
   rosters,
+  seasons,
 } from "../../../../db/schema";
 import {
   fetchLegheCalendar,
@@ -31,11 +32,14 @@ export async function POST(request: Request) {
   if ("response" in parsed) return parsed.response;
   const { seasonId, matchdayNumber, competition } = parsed.data;
 
-  const competitionId =
-    competition === "cup" ? process.env.LEGHE_CUP_COMPETITION_ID : process.env.LEGHE_COMPETITION_ID;
-  const envVarName = competition === "cup" ? "LEGHE_CUP_COMPETITION_ID" : "LEGHE_COMPETITION_ID";
+  const [season] = await db.select().from(seasons).where(eq(seasons.id, seasonId));
+  const competitionId = competition === "cup" ? season?.cupCompetitionId : season?.leagueCompetitionId;
+  const fieldLabel = competition === "cup" ? "Coppa" : "Campionato";
   if (!competitionId) {
-    return NextResponse.json({ error: `${envVarName} non configurato in .env.local` }, { status: 500 });
+    return NextResponse.json(
+      { error: `ID competizione ${fieldLabel} non configurato per questa stagione` },
+      { status: 500 }
+    );
   }
 
   let calendar;
@@ -151,7 +155,7 @@ export async function POST(request: Request) {
         if (!player) {
           // Unlike the voti scraper, this endpoint doesn't include a player
           // name — nothing to create a meaningful stub with. Skip and count;
-          // should be rare once the listone is fully synced via fantaasta.
+          // should be rare once the listone is fully synced.
           unmatchedPlayers += 1;
           continue;
         }

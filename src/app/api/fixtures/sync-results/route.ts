@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../../db";
-import { matchdayFixtures, rosters } from "../../../../db/schema";
+import { matchdayFixtures, rosters, seasons } from "../../../../db/schema";
 import {
   fetchLegheCalendar,
   fetchLegheTeams,
@@ -14,14 +14,23 @@ import { parseJsonBody } from "../../../../lib/validate";
 export async function POST(request: Request) {
   const parsed = await parseJsonBody(request, syncFixtureResultsSchema);
   if ("response" in parsed) return parsed.response;
-  const { seasonId, competitionId } = parsed.data;
+  const { seasonId } = parsed.data;
+
+  const [season] = await db.select().from(seasons).where(eq(seasons.id, seasonId));
+  const competitionId = season?.leagueCompetitionId;
+  if (!competitionId) {
+    return NextResponse.json(
+      { error: "ID competizione Campionato non configurato per questa stagione" },
+      { status: 500 }
+    );
+  }
 
   let teams;
   let calendar;
   try {
     [teams, calendar] = await Promise.all([
       fetchLegheTeams(),
-      fetchLegheCalendar(String(competitionId)),
+      fetchLegheCalendar(competitionId),
     ]);
   } catch (err) {
     return NextResponse.json(

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
 import { Tabs } from "../../components/tabs";
 import { CupBracket, type CupFixture } from "../../components/cup-bracket";
+import { ChampionIcon, getChampionBadges, useChampions } from "../../components/champion-badge";
 import { useTranslation } from "../../lib/i18n";
 
 type Season = { id: string; name: string; status: string };
@@ -18,7 +19,7 @@ type StandingRow = {
   totalScore: number;
   penaltyPoints: number;
 };
-type Roster = { id: string; seasonId: string; participantName: string | null };
+type Roster = { id: string; seasonId: string; participantName: string | null; participantUserId: string | null };
 
 const RANK_STYLES = [
   "bg-amber-400 text-amber-950",
@@ -36,6 +37,8 @@ export default function StandingsPage() {
 
   const [cupFixtures, setCupFixtures] = useState<CupFixture[]>([]);
   const [rosterManagerById, setRosterManagerById] = useState<Map<string, string>>(new Map());
+  const [rosterUserIdById, setRosterUserIdById] = useState<Map<string, string | null>>(new Map());
+  const champions = useChampions(seasonId);
 
   useEffect(() => {
     fetch("/api/seasons")
@@ -66,6 +69,7 @@ export default function StandingsPage() {
       .then((data: Roster[]) => {
         const forSeason = data.filter((r) => r.seasonId === seasonId);
         setRosterManagerById(new Map(forSeason.map((r) => [r.id, r.participantName ?? ""])));
+        setRosterUserIdById(new Map(forSeason.map((r) => [r.id, r.participantUserId])));
       });
   }, [seasonId]);
 
@@ -128,7 +132,18 @@ export default function StandingsPage() {
                           {index + 1}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-left font-semibold text-ink">{entry.rosterName}</td>
+                      <td className="px-4 py-3 text-left font-semibold text-ink">
+                        <span className="inline-flex items-center gap-1.5">
+                          {entry.rosterName}
+                          {getChampionBadges(champions, rosterUserIdById.get(entry.rosterId)).map((badge, i) => (
+                            <ChampionIcon
+                              key={i}
+                              type={badge.type}
+                              label={`${t(badge.type === "league" ? "League winner" : "Cup winner")} ${badge.seasonName}`}
+                            />
+                          ))}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-center text-ink-muted">{entry.played}</td>
                       <td className="px-4 py-3 text-center text-ink-muted">{entry.won}</td>
                       <td className="px-4 py-3 text-center text-ink-muted">{entry.drawn}</td>

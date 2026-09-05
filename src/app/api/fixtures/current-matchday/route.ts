@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "../../../../db";
-import { matchdayFixtures, participants, rosters } from "../../../../db/schema";
+import { matchdayFixtures, participants, rosters, seasons } from "../../../../db/schema";
 import { fetchLegheCalendar, fetchLegheParticipants, fetchLegheTeamLineup } from "../../../../lib/leghe-fantacalcio-client";
 
 // Centralizes the "what matchday are we on" logic that used to be
@@ -27,7 +27,8 @@ export async function GET(request: Request) {
   let current = played.length > 0 ? Math.max(...played) : 1;
 
   const next = current + 1;
-  const competitionId = process.env.LEGHE_COMPETITION_ID;
+  const [season] = await db.select().from(seasons).where(eq(seasons.id, seasonId));
+  const competitionId = season?.leagueCompetitionId;
   if (next <= maxMatchday && competitionId) {
     const nextFixture = fixtures.find((f) => f.matchdayNumber === next && f.rosterIdHome && f.rosterIdAway);
     if (nextFixture?.rosterIdHome && nextFixture?.rosterIdAway) {

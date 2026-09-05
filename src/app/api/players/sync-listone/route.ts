@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 import { and, isNotNull, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "../../../../db";
 import { players } from "../../../../db/schema";
-import { fetchFantaastaPlayers, type FantaastaPlayer } from "../../../../lib/fantaasta-client";
+import { fetchLegheListone, type LegheListonePlayer } from "../../../../lib/leghe-fantacalcio-client";
 
 export async function POST() {
-  let feed: FantaastaPlayer[];
+  let feed: LegheListonePlayer[];
   try {
-    feed = await fetchFantaastaPlayers();
+    feed = await fetchLegheListone();
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Sync fantaasta fallita" },
+      { error: err instanceof Error ? err.message : "Sync listone fallita" },
       { status: 502 }
     );
   }
@@ -23,8 +23,8 @@ export async function POST() {
     existingRows.filter((r) => r.externalId).map((r) => [r.externalId as string, r])
   );
 
-  const toInsert: FantaastaPlayer[] = [];
-  const toUpdate: (FantaastaPlayer & { id: string })[] = [];
+  const toInsert: LegheListonePlayer[] = [];
+  const toUpdate: (LegheListonePlayer & { id: string })[] = [];
   let reactivated = 0;
 
   for (const row of feed) {

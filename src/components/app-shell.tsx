@@ -16,6 +16,7 @@ import {
   History,
   Languages,
   ChevronDown,
+  Settings,
 } from "lucide-react";
 import { useTranslation } from "../lib/i18n";
 
@@ -30,6 +31,7 @@ const navigation = [
   { href: "/standings", labelKey: "Standings", icon: Trophy },
   { href: "/finance", labelKey: "Finance & Penalties", icon: CircleDollarSign },
   { href: "/history", labelKey: "History", icon: History },
+  { href: "/settings", labelKey: "Settings", icon: Settings },
 ];
 
 type TickerProps = {

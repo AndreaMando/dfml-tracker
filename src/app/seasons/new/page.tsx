@@ -32,6 +32,8 @@ export default function SeasonCreatePage() {
   const [name, setName] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
   const [status, setStatus] = useState("draft");
+  const [leagueCompetitionId, setLeagueCompetitionId] = useState("");
+  const [cupCompetitionId, setCupCompetitionId] = useState("");
   const [creating, setCreating] = useState(false);
 
   const [createdSeason, setCreatedSeason] = useState<Season | null>(null);
@@ -50,7 +52,13 @@ export default function SeasonCreatePage() {
     const res = await fetch("/api/seasons", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, year, status }),
+      body: JSON.stringify({
+        name,
+        year,
+        status,
+        leagueCompetitionId: leagueCompetitionId || null,
+        cupCompetitionId: cupCompetitionId || null,
+      }),
     });
     const created: Season = await res.json();
     setCreatedSeason(created);
@@ -275,6 +283,30 @@ export default function SeasonCreatePage() {
             <option value="finished">{t("Finished")}</option>
           </select>
         </label>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="block space-y-2 text-sm text-ink">
+            <span>{t("League competition ID")}</span>
+            <input
+              value={leagueCompetitionId}
+              onChange={(event) => setLeagueCompetitionId(event.target.value)}
+              className="w-full rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
+              placeholder="26549"
+            />
+          </label>
+          <label className="block space-y-2 text-sm text-ink">
+            <span>{t("Cup competition ID")}</span>
+            <input
+              value={cupCompetitionId}
+              onChange={(event) => setCupCompetitionId(event.target.value)}
+              className="w-full rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
+              placeholder="26657"
+            />
+          </label>
+        </div>
+        <p className="-mt-3 text-xs text-ink-muted">
+          {t("From the leghe.fantacalcio.it calendar URL for this league. Optional, needed only for automatic sync.")}
+        </p>
 
         <button
           type="submit"

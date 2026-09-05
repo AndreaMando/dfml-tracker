@@ -199,6 +199,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "Semifinals - Second leg": "Semifinali - Ritorno",
     "Final": "Finale",
     "Cup winner": "Vincitore Coppa",
+    "League winner": "Vincitore stagione",
     "Awaiting previous round": "In attesa del turno precedente",
     "Cup bracket not available yet.": "Tabellone coppa non ancora disponibile.",
     "League": "Campionato",
@@ -290,11 +291,11 @@ const translations: Record<Lang, Record<string, string>> = {
     "Free agent": "Svincolato",
     "Save changes": "Salva modifiche",
     "Delete player": "Elimina giocatore",
-    "Sync from fantaasta": "Sincronizza da fantaasta",
+    "Sync listone": "Sincronizza listone",
     "Sync summary": "Riepilogo sincronizzazione",
     "Sync players & stats": "Sincronizza giocatori e statistiche",
-    "Update the listone from fantaasta and import matchday votes from Fantacalcio.it, in parallel.":
-      "Aggiorna il listone da fantaasta e importa i voti della giornata da Fantacalcio.it, in parallelo.",
+    "Update the listone and import matchday votes from Fantacalcio.it, in parallel.":
+      "Aggiorna il listone e importa i voti della giornata da Fantacalcio.it, in parallelo.",
     "Sync all": "Sincronizza tutto",
     "Show transferred": "Mostra trasferiti",
     "All teams": "Tutte le squadre",
@@ -337,6 +338,10 @@ const translations: Record<Lang, Record<string, string>> = {
     "Add a new league season to the tracker.": "Aggiungi una nuova stagione di lega al tracker.",
     "New season": "Nuova stagione",
     "Year": "Anno",
+    "League competition ID": "ID competizione Campionato",
+    "Cup competition ID": "ID competizione Coppa",
+    "From the leghe.fantacalcio.it calendar URL for this league. Optional, needed only for automatic sync.":
+      "Dall'URL del calendario di leghe.fantacalcio.it per questa lega. Opzionale, serve solo per il sync automatico.",
     "Draft": "Bozza",
     "Finished": "Conclusa",
     "Season active": "Attiva",
@@ -388,6 +393,25 @@ const translations: Record<Lang, Record<string, string>> = {
     "Type a player name": "Digita il nome di un giocatore",
     "Add to roster": "Aggiungi alla rosa",
     "Delete roster": "Elimina rosa",
+
+    // ---- settings ----
+    "Settings": "Impostazioni",
+    "leghe.fantacalcio.it credentials, updated without a redeploy.":
+      "Credenziali leghe.fantacalcio.it, aggiornabili senza redeploy.",
+    "leghe.fantacalcio.it credentials": "Credenziali leghe.fantacalcio.it",
+    "Used for calendar, formations, results and listone sync.":
+      "Usate per calendario, formazioni, risultati e sync del listone.",
+    "Locked — enter the password to view.": "Bloccato — inserisci la password per vedere.",
+    "Saved": "Salvato",
+    "Log out": "Esci",
+    "Protected page": "Pagina protetta",
+    "Enter the settings password to continue.": "Inserisci la password per continuare.",
+    "Password": "Password",
+    "Try again in": "Riprova tra",
+    "min": "min",
+    "attempts left": "tentativi rimasti",
+    "Checking": "Verifica",
+    "Unlock": "Sblocca",
   }
 };
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "../../../../db";
-import { matchdayFixtures, participants, rosters } from "../../../../db/schema";
+import { matchdayFixtures, participants, rosters, seasons } from "../../../../db/schema";
 import { fetchLegheCalendar, fetchLegheParticipants, parseResult } from "../../../../lib/leghe-fantacalcio-client";
 import { syncCupCalendarSchema } from "../../../../lib/schemas";
 import { parseJsonBody } from "../../../../lib/validate";
@@ -19,9 +19,13 @@ export async function POST(request: Request) {
   if ("response" in parsed) return parsed.response;
   const { seasonId } = parsed.data;
 
-  const competitionId = process.env.LEGHE_CUP_COMPETITION_ID;
+  const [season] = await db.select().from(seasons).where(eq(seasons.id, seasonId));
+  const competitionId = season?.cupCompetitionId;
   if (!competitionId) {
-    return NextResponse.json({ error: "LEGHE_CUP_COMPETITION_ID non configurato in .env.local" }, { status: 500 });
+    return NextResponse.json(
+      { error: "ID competizione Coppa non configurato per questa stagione" },
+      { status: 500 }
+    );
   }
 
   let calendar;
