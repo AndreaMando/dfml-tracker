@@ -185,7 +185,11 @@ export default function ScoresPage() {
   const { t } = useTranslation();
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [seasonId, setSeasonId] = useState("");
-  const [matchdayNumber, setMatchdayNumber] = useState(1);
+  // null until /api/fixtures/current-matchday resolves — every fetch below
+  // waits for the real value instead of firing once for the placeholder `1`
+  // and again for the corrected matchday (double the requests, including
+  // the slow sync-lineups POST which hits leghe.fantacalcio.it for real).
+  const [matchdayNumber, setMatchdayNumber] = useState<number | null>(null);
   const [maxMatchday, setMaxMatchday] = useState(38);
 
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
@@ -222,13 +226,23 @@ export default function ScoresPage() {
   }, [seasonId]);
 
   function loadFixtures() {
-    if (!seasonId) return;
+    if (!seasonId || !matchdayNumber) return;
     fetch(`/api/fixtures?seasonId=${seasonId}&matchdayNumber=${matchdayNumber}`)
       .then((res) => res.json())
       .then(setFixtures);
   }
 
-  useEffect(loadFixtures, [seasonId, matchdayNumber]);
+  // Bumped once the season-wide sync-results below finishes, so the effect
+  // it triggers re-runs loadFixtures below with whatever matchdayNumber is
+  // *currently* selected — not whichever value was current when this
+  // component first mounted. sync-results only depends on seasonId (it
+  // covers every matchday in one call), so calling loadFixtures() directly
+  // from its own .then() would close over a stale matchdayNumber (1, the
+  // initial state, before /api/fixtures/current-matchday has even resolved)
+  // forever, silently overwriting whatever matchday the user later picks.
+  const [resultsSyncedAt, setResultsSyncedAt] = useState(0);
+
+  useEffect(loadFixtures, [seasonId, matchdayNumber, resultsSyncedAt]);
 
   // Fixtures/results are entirely machine-managed now — re-sync from
   // leghe.fantacalcio.it every time the page loads instead of a manual
@@ -241,7 +255,7 @@ export default function ScoresPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seasonId }),
     })
-      .then(() => loadFixtures())
+      .then(() => setResultsSyncedAt(Date.now()))
       .catch(() => null);
   }, [seasonId]);
 
@@ -350,7 +364,7 @@ export default function ScoresPage() {
         <label className="block space-y-2 text-sm text-ink">
           <span>{t("Matchday")}</span>
           <select
-            value={matchdayNumber}
+            value={matchdayNumber ?? ""}
             onChange={(event) => setMatchdayNumber(Number(event.target.value))}
             className="w-28 rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
           >

@@ -1,65 +1,65 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  BarChart3,
-  CircleDollarSign,
-  History,
-  ShoppingCart,
-  Sparkles,
-  Trophy,
-  Users,
-  ClipboardList,
-} from "lucide-react";
 import { useTranslation } from "../lib/i18n";
 import { SectionCard } from "../components/section-card";
-
-const endpoints = [
-  { labelKey: "Seasons", href: "/seasons", icon: Sparkles },
-  { labelKey: "Participants", href: "/participants", icon: Users },
-  { labelKey: "Players", href: "/players", icon: Trophy },
-  { labelKey: "Rosters", href: "/rosters", icon: ClipboardList },
-  { labelKey: "Market", href: "/market", icon: ShoppingCart },
-  { labelKey: "Scores", href: "/scores", icon: BarChart3 },
-  { labelKey: "Standings", href: "/standings", icon: Trophy },
-  { labelKey: "Finance", href: "/finance", icon: CircleDollarSign },
-  { labelKey: "History", href: "/history", icon: History },
-];
+import { LiveMatchesFeed } from "../components/live-matches-feed";
+import { MatchdayFixturesCard } from "../components/matchday-fixtures-card";
 
 type Season = { id: string; name: string; status: string };
 type Participant = { id: string; seasonId: string };
 type StandingRow = { rosterId: string; rosterName: string | null; points: number };
+type PlayerStat = { fullName: string; totalScore: number };
+type Fixture = {
+  id: string;
+  homeName: string | null;
+  awayName: string | null;
+  goalsHome: number | null;
+  goalsAway: number | null;
+  status: string;
+};
 
 export default function Home() {
   const { t } = useTranslation();
   const [participantsCount, setParticipantsCount] = useState<number | null>(null);
-  const [playersCount, setPlayersCount] = useState<number | null>(null);
+  const [topPlayerName, setTopPlayerName] = useState<string | null>(null);
   const [leaderName, setLeaderName] = useState<string | null>(null);
+  const [seasonId, setSeasonId] = useState<string | null>(null);
+  const [matchday, setMatchday] = useState<number | null>(null);
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
 
   useEffect(() => {
-    fetch("/api/players")
-      .then((res) => res.json())
-      .then((rows: unknown[]) => setPlayersCount(rows.length));
-
     fetch("/api/seasons")
       .then((res) => res.json())
       .then(async (seasons: Season[]) => {
         const active = seasons.find((s) => s.status === "active") ?? seasons[0];
         if (!active) return;
+        setSeasonId(active.id);
 
-        const [participants, standings] = await Promise.all([
+        const [participants, standings, stats] = await Promise.all([
           fetch("/api/participants")
             .then((res) => res.json())
             .then((rows: Participant[]) => rows.filter((p) => p.seasonId === active.id)),
           fetch(`/api/standings?seasonId=${active.id}`).then((res) => res.json()) as Promise<StandingRow[]>,
+          fetch(`/api/players/stats?seasonId=${active.id}`).then((res) => res.json()) as Promise<PlayerStat[]>,
+          fetch(`/api/fixtures/current-matchday?seasonId=${active.id}`)
+            .then((res) => res.json())
+            .then((data: { matchday: number }) => setMatchday(data.matchday)),
         ]);
 
         setParticipantsCount(participants.length);
         setLeaderName(standings[0]?.rosterName ?? null);
+        const topScorer = [...stats].sort((a, b) => b.totalScore - a.totalScore)[0];
+        setTopPlayerName(topScorer && topScorer.totalScore > 0 ? topScorer.fullName : null);
       });
   }, []);
+
+  useEffect(() => {
+    if (!seasonId || !matchday) return;
+    fetch(`/api/fixtures?seasonId=${seasonId}&matchdayNumber=${matchday}`)
+      .then((res) => res.json())
+      .then(setFixtures);
+  }, [seasonId, matchday]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,7 +85,7 @@ export default function Home() {
         <div className="grid gap-3 md:grid-cols-3">
           {[
             { label: t("Active participants"), value: participantsCount?.toString() ?? "—" },
-            { label: t("Registered players"), value: playersCount?.toString() ?? "—" },
+            { label: t("Best player"), value: topPlayerName ?? "—" },
             { label: t("League leader"), value: leaderName ?? "—" },
           ].map((item) => (
             <div key={item.label} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -96,31 +96,9 @@ export default function Home() {
         </div>
       </SectionCard>
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {endpoints.map((endpoint) => {
-          const Icon = endpoint.icon;
-          return (
-            <Link
-              key={endpoint.href}
-              href={endpoint.href}
-              className="group rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:border-[var(--azure)]"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="rounded-lg bg-[var(--azure-soft)] p-2 text-[var(--azure-deep)]">
-                  <Icon size={18} />
-                </div>
-                <ArrowRight
-                  size={16}
-                  className="text-[var(--line)] transition group-hover:text-[var(--azure)]"
-                />
-              </div>
-              <h3 className="mt-4 font-display text-base font-semibold text-[var(--ink)]">
-                {t(endpoint.labelKey)}
-              </h3>
-            </Link>
-          );
-        })}
-      </section>
+      <LiveMatchesFeed matchday={matchday} />
+
+      <MatchdayFixturesCard matchday={matchday} fixtures={fixtures} />
     </div>
   );
 }
