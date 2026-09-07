@@ -206,7 +206,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "Finished matches": "Partite terminate",
     "Show all matches": "Mostra tutte le partite",
     "Hide all matches": "Nascondi tutte le partite",
-    "Match finished": "Terminata",
+    "FT": "FT",
     "Matchday fixtures": "Scontri di giornata",
     "vs": "vs",
     "Best player": "Miglior giocatore",

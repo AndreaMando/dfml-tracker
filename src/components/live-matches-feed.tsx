@@ -51,9 +51,10 @@ function FeaturedRow({ match, t }: { match: LiveMatch; t: (key: string) => strin
             {match.minute !== null ? `${match.minute}'` : t("LIVE")}
           </span>
         ) : (
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
-            {t("Match finished")}
-          </span>
+          // Short universal abbreviation, not "Match finished" — that long a
+          // label forces the shrink-0 center column wide enough to squeeze
+          // both team names down to one letter on a narrow screen.
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{t("FT")}</span>
         )}
       </div>
 

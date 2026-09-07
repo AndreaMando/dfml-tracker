@@ -34,7 +34,7 @@ export function MatchdayFixturesCard({ matchday, fixtures }: { matchday: number 
         {fixtures.map((f) => (
           <div
             key={f.id}
-            className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-sm"
+            className="flex min-w-0 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-sm"
           >
             <span className="min-w-0 flex-1 truncate text-right font-medium text-ink">{f.homeName ?? "—"}</span>
             <span className="shrink-0 font-mono-data text-xs text-ink-muted">
