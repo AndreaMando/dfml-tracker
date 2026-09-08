@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 export type Lang = "en" | "it";
 const STORAGE_KEY = "dfml_language";
-const DEFAULT_LANG: Lang = "en";
+const DEFAULT_LANG: Lang = "it";
 
 const translations: Record<Lang, Record<string, string>> = {
   en: {
@@ -92,6 +92,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "Credits received": "Crediti ricevuti",
     "Confirm sale": "Conferma vendita",
     "Cancel": "Annulla",
+    "Delete": "Elimina",
     "Previous": "Precedente",
     "Next": "Successiva",
     "of": "di",
@@ -359,6 +360,11 @@ const translations: Record<Lang, Record<string, string>> = {
     "Close this season? Final standings and top scorer/assist-man/goalkeeper awards will be stored.":
       "Chiudere questa stagione? Classifica finale e premi capocannoniere/assist-man/portiere verranno storicizzati.",
     "Closing": "Chiusura",
+    "This cannot be undone from here.": "Non è annullabile da qui.",
+    "Final standings are locked and season awards (top scorer, assist-man, goalkeeper) are stored permanently.":
+      "La classifica finale viene bloccata e i premi di stagione (capocannoniere, assist-man, portiere) vengono salvati in modo permanente.",
+    "This season's participants and rosters will be deactivated.":
+      "I partecipanti e le rose di questa stagione verranno disattivati.",
     "Market history": "Storico mercato",
     "No market sessions recorded yet.": "Nessuna sessione di mercato registrata.",
     "Matchday results": "Risultati per giornata",

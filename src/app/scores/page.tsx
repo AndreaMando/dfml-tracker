@@ -330,20 +330,6 @@ export default function ScoresPage() {
     };
   }, [seasonId, matchdayNumber]);
 
-  async function handleFixtureScoreBlur(
-    fixtureId: string,
-    field: "scoreHome" | "scoreAway" | "goalsHome" | "goalsAway",
-    value: string
-  ) {
-    const isGoalField = field === "goalsHome" || field === "goalsAway";
-    await fetch(`/api/fixtures/${fixtureId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value === "" ? null : isGoalField ? Number(value) : value }),
-    });
-    loadFixtures();
-  }
-
   return (
     <ModuleShell title={t("Results & Votes")} description={t("Review matchday results and vote-based scoring summaries.")}>
       <div className="mb-6 flex flex-wrap items-end gap-4">
@@ -387,21 +373,12 @@ export default function ScoresPage() {
                   <span className="flex min-h-20 items-center break-words text-sm font-semibold text-ink">
                     {fixture.homeName ?? "—"}
                   </span>
-                  <input
-                    key={`gh-${fixture.id}-${fixture.goalsHome}`}
-                    type="number"
-                    defaultValue={fixture.goalsHome ?? ""}
-                    onBlur={(event) => handleFixtureScoreBlur(fixture.id, "goalsHome", event.target.value)}
-                    title={t("Goals")}
-                    className="w-12 rounded-lg bg-transparent text-center text-xl font-bold text-ink outline-none focus:bg-surface-alt"
-                  />
-                  <input
-                    type="number"
-                    defaultValue={fixture.scoreHome ?? ""}
-                    onBlur={(event) => handleFixtureScoreBlur(fixture.id, "scoreHome", event.target.value)}
-                    title={t("FV")}
-                    className="w-12 rounded-lg bg-transparent text-center text-xs text-ink-muted outline-none focus:bg-surface-alt"
-                  />
+                  <span title={t("Goals")} className="w-12 text-center text-xl font-bold text-ink">
+                    {fixture.goalsHome ?? "-"}
+                  </span>
+                  <span title={t("FV")} className="w-12 text-center text-xs text-ink-muted">
+                    {fixture.scoreHome ?? "-"}
+                  </span>
                 </div>
 
                 <span className="pt-20 text-ink-muted">—</span>
@@ -410,21 +387,12 @@ export default function ScoresPage() {
                   <span className="flex min-h-20 items-center break-words text-sm font-semibold text-ink">
                     {fixture.awayName ?? "—"}
                   </span>
-                  <input
-                    key={`ga-${fixture.id}-${fixture.goalsAway}`}
-                    type="number"
-                    defaultValue={fixture.goalsAway ?? ""}
-                    onBlur={(event) => handleFixtureScoreBlur(fixture.id, "goalsAway", event.target.value)}
-                    title={t("Goals")}
-                    className="w-12 rounded-lg bg-transparent text-center text-xl font-bold text-ink outline-none focus:bg-surface-alt"
-                  />
-                  <input
-                    type="number"
-                    defaultValue={fixture.scoreAway ?? ""}
-                    onBlur={(event) => handleFixtureScoreBlur(fixture.id, "scoreAway", event.target.value)}
-                    title={t("FV")}
-                    className="w-12 rounded-lg bg-transparent text-center text-xs text-ink-muted outline-none focus:bg-surface-alt"
-                  />
+                  <span title={t("Goals")} className="w-12 text-center text-xl font-bold text-ink">
+                    {fixture.goalsAway ?? "-"}
+                  </span>
+                  <span title={t("FV")} className="w-12 text-center text-xs text-ink-muted">
+                    {fixture.scoreAway ?? "-"}
+                  </span>
                 </div>
               </div>
 

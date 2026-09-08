@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, Check, Trophy } from "lucide-react";
 import { ModuleShell } from "../../components/module-shell";
+import { ConfirmDialog } from "../../components/confirm-dialog";
 import { useTranslation } from "../../lib/i18n";
 import { CUP_FINAL_ROUND, cupRoundLabelKey } from "../../lib/cup";
 
@@ -182,9 +183,9 @@ export default function HistoryPage() {
     loadAll();
   }, []);
 
+  const [confirmCloseId, setConfirmCloseId] = useState("");
+
   async function handleCloseSeason(id: string) {
-    if (!confirm(t("Close this season? Final standings and top scorer/assist-man/goalkeeper awards will be stored.")))
-      return;
     setClosingId(id);
     await fetch(`/api/seasons/${id}`, {
       method: "PATCH",
@@ -193,6 +194,7 @@ export default function HistoryPage() {
     });
     await loadAll();
     setClosingId("");
+    setConfirmCloseId("");
   }
 
   return (
@@ -249,7 +251,7 @@ export default function HistoryPage() {
                         type="button"
                         onClick={(event) => {
                           event.preventDefault();
-                          handleCloseSeason(season.id);
+                          setConfirmCloseId(season.id);
                         }}
                         disabled={closingId === season.id}
                         className="rounded-2xl border border-azure/20 bg-azure-soft px-4 py-2 text-xs font-semibold text-azure-deep transition hover:bg-azure/10 disabled:opacity-50"
@@ -407,6 +409,22 @@ export default function HistoryPage() {
           {seasons.length === 0 && <p className="text-sm text-ink-muted">{t("No data yet")}</p>}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmCloseId !== ""}
+        title={t("Close season")}
+        description={seasons.find((s) => s.id === confirmCloseId)?.name}
+        consequences={[
+          t("Final standings are locked and season awards (top scorer, assist-man, goalkeeper) are stored permanently."),
+          t("This season's participants and rosters will be deactivated."),
+          t("This cannot be undone from here."),
+        ]}
+        confirmLabel={t("Close season")}
+        cancelLabel={t("Cancel")}
+        busy={closingId === confirmCloseId && closingId !== ""}
+        onCancel={() => setConfirmCloseId("")}
+        onConfirm={() => handleCloseSeason(confirmCloseId)}
+      />
     </ModuleShell>
   );
 }

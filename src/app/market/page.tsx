@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
 import { SectionCard } from "../../components/section-card";
+import { ConfirmDialog } from "../../components/confirm-dialog";
 import { useTranslation } from "../../lib/i18n";
 
 type Season = { id: string; name: string; status: string };
@@ -126,10 +127,15 @@ export default function MarketPage() {
     loadSessions();
   }
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   async function handleDelete(sessionId: string) {
-    if (!confirm(t("Delete this market session?"))) return;
+    setDeleting(true);
     await fetch(`/api/market/${sessionId}`, { method: "DELETE" });
-    loadSessions();
+    await loadSessions();
+    setDeleting(false);
+    setConfirmDeleteId(null);
   }
 
   return (
@@ -206,7 +212,7 @@ export default function MarketPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleDelete(session.id)}
+                      onClick={() => setConfirmDeleteId(session.id)}
                       title={t("Remove")}
                       aria-label={t("Remove")}
                       className="flex h-8 w-8 items-center justify-center rounded-full text-ink-muted transition hover:bg-red-50 hover:text-red-600"
@@ -271,6 +277,16 @@ export default function MarketPage() {
           </button>
         </form>
       </SectionCard>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title={t("Delete this market session?")}
+        confirmLabel={t("Delete")}
+        cancelLabel={t("Cancel")}
+        busy={deleting}
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+      />
     </ModuleShell>
   );
 }

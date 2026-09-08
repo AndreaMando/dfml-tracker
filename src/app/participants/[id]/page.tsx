@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModuleShell } from "../../../components/module-shell";
 import { ChampionCaption, getChampionBadges, useChampions } from "../../../components/champion-badge";
+import { ConfirmDialog } from "../../../components/confirm-dialog";
 import { useTranslation } from "../../../lib/i18n";
 
 type Roster = { id: string; name: string | null; creditsRemaining: string | null };
@@ -61,8 +62,11 @@ export default function ParticipantDetailPage() {
     setSaving(false);
   }
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   async function handleDelete() {
-    if (!confirm(t("Delete this participant?"))) return;
+    setDeleting(true);
     await fetch(`/api/participants/${id}`, { method: "DELETE" });
     router.push("/participants");
   }
@@ -166,13 +170,23 @@ export default function ParticipantDetailPage() {
             </button>
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => setConfirmDelete(true)}
               className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
             >
               {t("Delete participant")}
             </button>
           </div>
         </form>
+
+        <ConfirmDialog
+          open={confirmDelete}
+          title={t("Delete this participant?")}
+          confirmLabel={t("Delete participant")}
+          cancelLabel={t("Cancel")}
+          busy={deleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={handleDelete}
+        />
       </div>
     </ModuleShell>
   );

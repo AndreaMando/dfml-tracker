@@ -107,14 +107,14 @@ export default function StandingsPage() {
               <table className="w-full text-sm text-ink">
                 <thead className="border-b border-line bg-surface-alt text-xs uppercase tracking-wide text-ink-muted">
                   <tr>
-                    <th className="px-4 py-3 text-center">{t("Rank")}</th>
-                    <th className="px-4 py-3 text-left">{t("Roster")}</th>
+                    <th className="sticky left-0 z-10 bg-surface-alt px-4 py-3 text-center">{t("Rank")}</th>
+                    <th className="sticky left-[52px] z-10 bg-surface-alt px-4 py-3 text-left">{t("Roster")}</th>
                     <th className="px-4 py-3 text-center">{t("Played")}</th>
                     <th className="px-4 py-3 text-center">{t("Won")}</th>
                     <th className="px-4 py-3 text-center">{t("Drawn")}</th>
                     <th className="px-4 py-3 text-center">{t("Lost")}</th>
                     <th className="px-4 py-3 text-center">{t("Total score")}</th>
-                    <th className="px-4 py-3 text-center">{t("Points")}</th>
+                    <th className="sticky right-0 z-10 bg-surface-alt px-4 py-3 text-center">{t("Points")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -123,7 +123,7 @@ export default function StandingsPage() {
                       key={entry.rosterId}
                       className="border-t border-line transition even:bg-surface-alt/40 hover:bg-azure-soft/40"
                     >
-                      <td className="px-4 py-3 text-center">
+                      <td className="sticky left-0 z-10 bg-surface px-4 py-3 text-center [tr:nth-child(even)_&]:bg-surface-alt">
                         <span
                           className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
                             RANK_STYLES[index] ?? "bg-surface-alt text-ink-muted"
@@ -132,7 +132,7 @@ export default function StandingsPage() {
                           {index + 1}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-left font-semibold text-ink">
+                      <td className="sticky left-[52px] z-10 bg-surface px-4 py-3 text-left font-semibold text-ink [tr:nth-child(even)_&]:bg-surface-alt">
                         <span className="inline-flex items-center gap-1.5">
                           {entry.rosterName}
                           {getChampionBadges(champions, rosterUserIdById.get(entry.rosterId)).map((badge, i) => (
@@ -149,7 +149,7 @@ export default function StandingsPage() {
                       <td className="px-4 py-3 text-center text-ink-muted">{entry.drawn}</td>
                       <td className="px-4 py-3 text-center text-ink-muted">{entry.lost}</td>
                       <td className="px-4 py-3 text-center text-ink-muted">{entry.totalScore.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-center shadow-[-4px_0_6px_-4px_rgba(11,30,61,0.15)] [tr:nth-child(even)_&]:bg-surface-alt">
                         <span className="inline-flex min-w-10 items-center justify-center rounded-full bg-azure-soft px-3 py-1 text-sm font-bold text-azure-deep">
                           {entry.points}
                         </span>

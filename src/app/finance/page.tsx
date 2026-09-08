@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
 import { SectionCard } from "../../components/section-card";
+import { ConfirmDialog } from "../../components/confirm-dialog";
 import { useTranslation } from "../../lib/i18n";
 
 type Season = { id: string; name: string; status: string };
@@ -162,10 +163,15 @@ export default function FinancePage() {
     setSaving(false);
   }
 
+  const [confirmDelete, setConfirmDelete] = useState<{ kind: "tx" | "penalty"; id: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   async function handleDeleteTx(id: string) {
-    if (!confirm(t("Delete this transaction?"))) return;
+    setDeleting(true);
     await fetch(`/api/finance/${id}`, { method: "DELETE" });
-    loadTransactions();
+    await loadTransactions();
+    setDeleting(false);
+    setConfirmDelete(null);
   }
 
   async function handleAddPenalty(event: React.FormEvent) {
@@ -188,9 +194,11 @@ export default function FinancePage() {
   }
 
   async function handleDeletePenalty(id: string) {
-    if (!confirm(t("Delete this penalty?"))) return;
+    setDeleting(true);
     await fetch(`/api/standings-penalties/${id}`, { method: "DELETE" });
-    loadPenalties();
+    await loadPenalties();
+    setDeleting(false);
+    setConfirmDelete(null);
   }
 
   function handleBonusChange(rank: number, bonus: string) {
@@ -329,7 +337,7 @@ export default function FinancePage() {
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteTx(tx.id)}
+                                  onClick={() => setConfirmDelete({ kind: "tx", id: tx.id })}
                                   className="text-red-500 hover:underline"
                                 >
                                   {t("Remove")}
@@ -445,7 +453,7 @@ export default function FinancePage() {
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={() => handleDeletePenalty(p.id)}
+                                    onClick={() => setConfirmDelete({ kind: "penalty", id: p.id })}
                                     className="text-red-500 hover:underline"
                                   >
                                     {t("Remove")}
@@ -510,6 +518,20 @@ export default function FinancePage() {
           </form>
         </SectionCard>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={confirmDelete?.kind === "penalty" ? t("Delete this penalty?") : t("Delete this transaction?")}
+        confirmLabel={t("Delete")}
+        cancelLabel={t("Cancel")}
+        busy={deleting}
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          if (!confirmDelete) return;
+          if (confirmDelete.kind === "penalty") handleDeletePenalty(confirmDelete.id);
+          else handleDeleteTx(confirmDelete.id);
+        }}
+      />
     </ModuleShell>
   );
 }

@@ -1,12 +1,15 @@
 export type Role = "GK" | "DF" | "MF" | "FW";
 
 // Filled circle + white letter, matching leghe.fantacalcio.it's own badges:
-// P (GK) amber, D (DF) emerald, C (MF) sky, A (FW) rose.
+// P (GK) amber, D (DF) emerald, C (MF) sky, A (FW) rose. The -700 step (not
+// -500) is what actually clears WCAG AA (4.5:1) for white text on these —
+// verified by computing real contrast ratios from Tailwind v4's OKLCH
+// palette: -500 lands 2.1:1-3.8:1, -700 lands 5.0:1-6.1:1 across all four.
 const roleStyles: Record<Role, string> = {
-  GK: "bg-amber-500 text-white",
-  DF: "bg-emerald-500 text-white",
-  MF: "bg-sky-500 text-white",
-  FW: "bg-rose-500 text-white",
+  GK: "bg-amber-700 text-white",
+  DF: "bg-emerald-700 text-white",
+  MF: "bg-sky-700 text-white",
+  FW: "bg-rose-700 text-white",
 };
 
 const sizeClasses: Record<"sm" | "md" | "lg", string> = {

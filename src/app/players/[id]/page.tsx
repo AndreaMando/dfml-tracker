@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ModuleShell } from "../../../components/module-shell";
 import { StatIcon } from "../../../components/stat-icon";
+import { ConfirmDialog } from "../../../components/confirm-dialog";
 import { useTranslation } from "../../../lib/i18n";
 
 type Player = {
@@ -59,8 +60,11 @@ export default function PlayerDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   async function handleDelete() {
-    if (!confirm(t("Delete this player?"))) return;
+    setDeleting(true);
     await fetch(`/api/players/${id}`, { method: "DELETE" });
     router.push("/players");
   }
@@ -201,12 +205,22 @@ export default function PlayerDetailPage() {
       <div className="mt-6">
         <button
           type="button"
-          onClick={handleDelete}
+          onClick={() => setConfirmDelete(true)}
           className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
         >
           {t("Delete player")}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={t("Delete this player?")}
+        confirmLabel={t("Delete player")}
+        cancelLabel={t("Cancel")}
+        busy={deleting}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+      />
     </ModuleShell>
   );
 }

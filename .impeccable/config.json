@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/app/history/page.tsx"
+        ],
+        "createdAt": "2026-09-08T17:51:39.267Z",
+        "reason": "computed contrast: text-slate-800 on bg-slate-300 = 9.87:1 (verified via OKLCH->sRGB WCAG calc), far above 4.5:1 AA; RANK_STYLES is 3 independent single-string array entries (amber-400/amber-950, slate-300/slate-800, orange-300/orange-950) on one source line, detector cross-paired tokens from separate entries rather than the real applied pairs"
+      }
+    ]
+  }
+}

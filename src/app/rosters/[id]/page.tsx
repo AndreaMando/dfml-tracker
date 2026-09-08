@@ -8,6 +8,7 @@ import { Tabs } from "../../../components/tabs";
 import { FilterPill } from "../../../components/filter-pill";
 import { RoleBadge } from "../../../components/role-badge";
 import { ChampionCaption, getChampionBadges, useChampions } from "../../../components/champion-badge";
+import { ConfirmDialog } from "../../../components/confirm-dialog";
 import { useTranslation } from "../../../lib/i18n";
 import { computeSaleRefund } from "../../../lib/refund";
 
@@ -194,8 +195,11 @@ export default function RosterDetailPage() {
     setSellTarget(null);
   }
 
+  const [confirmDeleteRoster, setConfirmDeleteRoster] = useState(false);
+  const [deletingRoster, setDeletingRoster] = useState(false);
+
   async function handleDeleteRoster() {
-    if (!confirm(t("Delete this roster?"))) return;
+    setDeletingRoster(true);
     await fetch(`/api/rosters/${id}`, { method: "DELETE" });
     router.push("/rosters");
   }
@@ -260,13 +264,23 @@ export default function RosterDetailPage() {
             </p>
             <button
               type="button"
-              onClick={handleDeleteRoster}
+              onClick={() => setConfirmDeleteRoster(true)}
               className="w-fit rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
             >
               {t("Delete roster")}
             </button>
           </div>
         )}
+
+        <ConfirmDialog
+          open={confirmDeleteRoster}
+          title={t("Delete this roster?")}
+          confirmLabel={t("Delete roster")}
+          cancelLabel={t("Cancel")}
+          busy={deletingRoster}
+          onCancel={() => setConfirmDeleteRoster(false)}
+          onConfirm={handleDeleteRoster}
+        />
 
         {activeTab === "players" && (
           <div className="space-y-4">
