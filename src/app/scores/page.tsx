@@ -193,6 +193,9 @@ export default function ScoresPage() {
   // the slow sync-lineups POST which hits leghe.fantacalcio.it for real).
   const [matchdayNumber, setMatchdayNumber] = useState<number | null>(null);
   const [maxMatchday, setMaxMatchday] = useState(38);
+  // The league's real current matchday — distinct from the selected one,
+  // used to flag the matchday that is still being played.
+  const [currentMatchday, setCurrentMatchday] = useState<number | null>(null);
 
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
 
@@ -221,6 +224,7 @@ export default function ScoresPage() {
     fetchJsonShared<{ matchday: number; maxMatchday: number }>(`/api/fixtures/current-matchday?seasonId=${seasonId}`)
       .then((data) => {
         setMaxMatchday(data.maxMatchday);
+        setCurrentMatchday(data.matchday);
         setMatchdayNumber(data.matchday);
       });
   }, [seasonId]);
@@ -376,7 +380,19 @@ export default function ScoresPage() {
         </label>
       </div>
 
-      <SectionCard title={t("Fixtures")} description={t("Matches for this matchday.")}>
+      <SectionCard
+        title={t("Championship")}
+        action={
+          // Current matchday that hasn't been fully calculated yet — once
+          // every fixture is "played" the badge goes away.
+          matchdayNumber === currentMatchday && fixtures.some((f) => f.status !== "played") ? (
+            <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-rose-600">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-600" />
+              {t("In progress")}
+            </span>
+          ) : undefined
+        }
+      >
         <div className="space-y-3">
           {fixtures.map((fixture) => (
             <div key={fixture.id} className="rounded-2xl border border-line bg-surface p-4">

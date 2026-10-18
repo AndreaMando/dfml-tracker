@@ -204,6 +204,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "Awaiting previous round": "In attesa del turno precedente",
     "Serie A live": "Serie A live",
     "LIVE": "LIVE",
+    "Championship": "Campionato",
+    "In progress": "In corso",
     "Finished matches": "Partite terminate",
     "Show all matches": "Mostra tutte le partite",
     "Hide all matches": "Nascondi tutte le partite",

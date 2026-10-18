@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
-import { SectionCard } from "../../components/section-card";
 import { FilterPill } from "../../components/filter-pill";
 import { Tabs } from "../../components/tabs";
 import { RoleBadge } from "../../components/role-badge";
 import { StatIcon } from "../../components/stat-icon";
 import { useTranslation } from "../../lib/i18n";
 import { fetchJsonShared } from "../../lib/fetch-json";
+import { usePlayerDataSync } from "../../hooks/use-player-data-sync";
 
 type Player = {
   id: string;
@@ -108,22 +108,9 @@ export default function PlayersPage() {
   const [sortKey, setSortKey] = useState<StatSortKey>("totalScore");
   const [sortDesc, setSortDesc] = useState(true);
 
-  // Sync: listone (apileague.fantacalcio.it) + Fantacalcio.it (voti giornata), fired together.
-  // fantacalcioSeason/fantacalcioMatchday (the external site's own identifiers)
-  // are derived from our own season/matchday — the two have never actually
-  // diverged, no reason to make the user enter the same matchday twice.
-  const [matchdayNumber, setMatchdayNumber] = useState(1);
-  const [maxMatchday, setMaxMatchday] = useState(38);
-  const [syncingAll, setSyncingAll] = useState(false);
-  const [listoneResult, setListoneResult] = useState<{
-    created: number;
-    updated: number;
-    reactivated: number;
-    markedTransferred: number;
-  } | null>(null);
-  const [listoneError, setListoneError] = useState("");
-  const [importResult, setImportResult] = useState<{ imported: number; created: string[] } | null>(null);
-  const [importError, setImportError] = useState("");
+  // Current matchday of the league's season — what the automatic vote import
+  // below targets (null until /api/fixtures/current-matchday resolves).
+  const [matchdayNumber, setMatchdayNumber] = useState<number | null>(null);
 
   function loadPlayers() {
     return fetch("/api/players")
@@ -131,9 +118,11 @@ export default function PlayersPage() {
       .then(setPlayers);
   }
 
-  function loadStats() {
+  // `silent` refreshes in place (after the background sync) without flashing
+  // the loading state over an already-populated table.
+  function loadStats(silent = false) {
     if (!seasonId) return;
-    setStatsLoading(true);
+    if (!silent) setStatsLoading(true);
     return fetch(`/api/players/stats?seasonId=${seasonId}`)
       .then((res) => res.json())
       .then(setStats)
@@ -154,73 +143,28 @@ export default function PlayersPage() {
     loadStats();
   }, [seasonId]);
 
-  // Matchday selectors: default to the current matchday (same logic as the
-  // top ticker — last played, or the next one if its lineups are already
-  // locked) and cap the dropdowns at however many matchdays this season's
-  // calendar actually has.
+  // Same logic as the top ticker — last played matchday, or the next one if
+  // its lineups are already locked.
   useEffect(() => {
     if (!seasonId) return;
-    fetchJsonShared<{ matchday: number; maxMatchday: number }>(`/api/fixtures/current-matchday?seasonId=${seasonId}`)
-      .then((data) => {
-        setMaxMatchday(data.maxMatchday);
-        setMatchdayNumber(data.matchday);
-      });
+    fetchJsonShared<{ matchday: number }>(`/api/fixtures/current-matchday?seasonId=${seasonId}`).then((data) =>
+      setMatchdayNumber(data.matchday)
+    );
   }, [seasonId]);
 
-  // fantacalcio.it season string, e.g. season year 2026 -> "2026-27".
-  const activeSeason = seasons.find((s) => s.id === seasonId);
-  const fantacalcioSeason = activeSeason
-    ? `${activeSeason.year}-${String((activeSeason.year + 1) % 100).padStart(2, "0")}`
-    : "";
+  // The listone and the current matchday's votes refresh themselves whenever
+  // the page opens (replaces the old manual "Sync all" form), always for the
+  // league's active season.
+  const activeSeason = seasons.find((s) => s.id === seasonId) ?? null;
+  const { error: syncError, listoneSyncedAt, scoresSyncedAt } = usePlayerDataSync(activeSeason, matchdayNumber);
 
-  async function handleSyncAll(event: React.FormEvent) {
-    event.preventDefault();
-    setSyncingAll(true);
-    setListoneError("");
-    setListoneResult(null);
-    setImportError("");
-    setImportResult(null);
+  useEffect(() => {
+    if (listoneSyncedAt) loadPlayers();
+  }, [listoneSyncedAt]);
 
-    const [listoneRes, importRes] = await Promise.allSettled([
-      fetch("/api/players/sync-listone", { method: "POST" }),
-      fetch("/api/scores/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          seasonId,
-          matchdayNumber,
-          fantacalcioSeason,
-          fantacalcioMatchday: matchdayNumber,
-        }),
-      }),
-    ]);
-
-    if (listoneRes.status === "fulfilled") {
-      const data = await listoneRes.value.json();
-      if (listoneRes.value.ok) {
-        setListoneResult(data);
-        await loadPlayers();
-      } else {
-        setListoneError(data.error ?? t("Sync failed"));
-      }
-    } else {
-      setListoneError(t("Sync failed"));
-    }
-
-    if (importRes.status === "fulfilled") {
-      const data = await importRes.value.json();
-      if (importRes.value.ok) {
-        setImportResult(data);
-        loadStats();
-      } else {
-        setImportError(data.error ?? t("Import failed"));
-      }
-    } else {
-      setImportError(t("Import failed"));
-    }
-
-    setSyncingAll(false);
-  }
+  useEffect(() => {
+    if (scoresSyncedAt) loadStats(true);
+  }, [scoresSyncedAt]);
 
   function toggleSort(key: StatSortKey) {
     if (key === sortKey) setSortDesc((d) => !d);
@@ -346,71 +290,11 @@ export default function PlayersPage() {
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
       </div>
 
-      <SectionCard
-        title={t("Sync players & stats")}
-        description={t("Update the listone and import matchday votes from Fantacalcio.it, in parallel.")}
-      >
-        <form onSubmit={handleSyncAll} className="flex flex-wrap items-end gap-3">
-          <label className="block space-y-2 text-sm text-ink">
-            <span>{t("Season")}</span>
-            <select
-              value={seasonId}
-              onChange={(event) => setSeasonId(event.target.value)}
-              className="rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
-            >
-              {seasons.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-2 text-sm text-ink">
-            <span>{t("Matchday")}</span>
-            <select
-              value={matchdayNumber}
-              onChange={(event) => setMatchdayNumber(Number(event.target.value))}
-              className="w-24 rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none focus:border-azure"
-            >
-              {Array.from({ length: maxMatchday }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            disabled={syncingAll}
-            className="rounded-2xl bg-azure px-4 py-3 text-sm font-semibold text-white transition hover:bg-azure-deep disabled:opacity-50"
-          >
-            {syncingAll ? t("Syncing") + "..." : t("Sync all")}
-          </button>
-        </form>
-        {listoneError && (
-          <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {t("Sync listone")}: {listoneError}
-          </p>
-        )}
-        {listoneResult && (
-          <p className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {t("Sync summary")}: {t("New")} {listoneResult.created} · {t("Updated")} {listoneResult.updated} ·{" "}
-            {t("Transferred out")} {listoneResult.markedTransferred} · {t("Reactivated")} {listoneResult.reactivated}
-          </p>
-        )}
-        {importError && (
-          <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {t("Import from Fantacalcio.it")}: {importError}
-          </p>
-        )}
-        {importResult && (
-          <p className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {t("Imported")} {importResult.imported}.{" "}
-            {importResult.created.length > 0 &&
-              `${t("New players created")}: ${importResult.created.join(", ")}`}
-          </p>
-        )}
-      </SectionCard>
+      {syncError && (
+        <p className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {t("Sync failed")}: {syncError}
+        </p>
+      )}
 
       <div className="mt-6">
         {activeTab === "all" ? (

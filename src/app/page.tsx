@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "../lib/i18n";
 import { fetchJsonShared } from "../lib/fetch-json";
+import { usePlayerDataSync } from "../hooks/use-player-data-sync";
 import { SectionCard } from "../components/section-card";
 import { LiveMatchesFeed } from "../components/live-matches-feed";
 import { MatchdayFixturesCard } from "../components/matchday-fixtures-card";
 
-type Season = { id: string; name: string; status: string };
+type Season = { id: string; name: string; status: string; year: number };
 type Participant = { id: string; seasonId: string };
 type StandingRow = { rosterId: string; rosterName: string | null; points: number };
 type PlayerStat = { fullName: string; totalScore: number };
@@ -26,6 +27,7 @@ export default function Home() {
   const [topPlayerName, setTopPlayerName] = useState<string | null>(null);
   const [leaderName, setLeaderName] = useState<string | null>(null);
   const [seasonId, setSeasonId] = useState<string | null>(null);
+  const [seasonYear, setSeasonYear] = useState<number | null>(null);
   const [matchday, setMatchday] = useState<number | null>(null);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
 
@@ -34,6 +36,7 @@ export default function Home() {
       const active = seasons.find((s) => s.status === "active") ?? seasons[0];
       if (!active) return;
       setSeasonId(active.id);
+      setSeasonYear(active.year);
 
       const [participants, standings, stats] = await Promise.all([
         fetchJsonShared<Participant[]>(`/api/participants?seasonId=${active.id}`),
@@ -50,6 +53,25 @@ export default function Home() {
       setTopPlayerName(topScorer && topScorer.totalScore > 0 ? topScorer.fullName : null);
     });
   }, []);
+
+  // Keep "Best player" current: re-import the matchday's votes in the
+  // background (same throttled refresh the Players page uses, minus the
+  // listone) and recompute the top scorer once they land.
+  const { scoresSyncedAt } = usePlayerDataSync(
+    seasonId && seasonYear !== null ? { id: seasonId, year: seasonYear } : null,
+    matchday,
+    { listone: false }
+  );
+
+  useEffect(() => {
+    if (!scoresSyncedAt || !seasonId) return;
+    fetch(`/api/players/stats?seasonId=${seasonId}`)
+      .then((res) => res.json() as Promise<PlayerStat[]>)
+      .then((stats) => {
+        const topScorer = [...stats].sort((a, b) => b.totalScore - a.totalScore)[0];
+        setTopPlayerName(topScorer && topScorer.totalScore > 0 ? topScorer.fullName : null);
+      });
+  }, [scoresSyncedAt, seasonId]);
 
   useEffect(() => {
     if (!seasonId || !matchday) return;

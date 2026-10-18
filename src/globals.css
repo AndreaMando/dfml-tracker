@@ -68,3 +68,10 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Tailwind v4's space-y-* spaces children with margin-block-end, which an
+   inline element ignores — so the label text <span> above a form control
+   ("Season", "Amount", ...) sat flush against it. Make it a block. */
+label[class*="space-y-"] > span:first-child {
+  display: block;
+}
