@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../../../db";
 import { matchdayFixtures, participants, rosters, seasons } from "../../../../db/schema";
 import { fetchLegheCalendar, fetchLegheParticipants, parseResult } from "../../../../lib/leghe-fantacalcio-client";
@@ -60,6 +60,7 @@ export async function POST(request: Request) {
 
   let fixturesUpserted = 0;
   const unmatchedTeams = new Set<string>();
+  const syncedKeys = new Set<string>();
 
   for (const round of calendar) {
     for (const match of round.matches) {
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
         unmatchedTeams.add(`${match.tIdH} vs ${match.tIdA}`);
         continue;
       }
+      syncedKeys.add(`${round.matchDay}|${rosterIdHome}|${rosterIdAway}`);
 
       const goals = parseResult(match.result);
       await db
@@ -109,5 +111,36 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ fixturesUpserted, unmatchedTeams: [...unmatchedTeams] });
+  // The upsert above only ever adds rows. If the cup draw changes on
+  // leghe.fantacalcio.it (redrawn pairings), the old pairings would linger
+  // next to the new ones and a round would show double the matches. Drop
+  // cup fixtures the API no longer returns — but only unplayed ones (no
+  // scores to lose), and only when every API pairing resolved to a roster,
+  // so a partial/failed mapping can never wipe valid fixtures.
+  let fixturesPruned = 0;
+  if (calendar.length > 0 && unmatchedTeams.size === 0) {
+    const existing = await db
+      .select({
+        id: matchdayFixtures.id,
+        matchdayNumber: matchdayFixtures.matchdayNumber,
+        rosterIdHome: matchdayFixtures.rosterIdHome,
+        rosterIdAway: matchdayFixtures.rosterIdAway,
+        status: matchdayFixtures.status,
+      })
+      .from(matchdayFixtures)
+      .where(and(eq(matchdayFixtures.seasonId, seasonId), eq(matchdayFixtures.competition, "cup")));
+    const staleIds = existing
+      .filter(
+        (f) =>
+          f.status === "scheduled" &&
+          !syncedKeys.has(`${f.matchdayNumber}|${f.rosterIdHome}|${f.rosterIdAway}`)
+      )
+      .map((f) => f.id);
+    if (staleIds.length > 0) {
+      await db.delete(matchdayFixtures).where(inArray(matchdayFixtures.id, staleIds));
+      fixturesPruned = staleIds.length;
+    }
+  }
+
+  return NextResponse.json({ fixturesUpserted, fixturesPruned, unmatchedTeams: [...unmatchedTeams] });
 }
