@@ -15,10 +15,14 @@ async function authHeaders(): Promise<Record<string, string>> {
   }
   return {
     accept: "application/json",
-    App_Key: appKey,
-    Authorization: authToken,
+    App_Key: appKey.trim(),
+    Authorization: authToken.trim(),
     origin: "https://leghe.fantacalcio.it",
     referer: "https://leghe.fantacalcio.it/",
+    // The API's WAF now answers 403 {"code":"FAIL"} to Node's default
+    // fetch User-Agent even with valid credentials — a browser UA is required.
+    "user-agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
   };
 }
 
