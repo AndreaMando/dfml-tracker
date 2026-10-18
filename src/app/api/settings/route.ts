@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAppSetting, setAppSetting } from "../../../lib/app-settings";
 import { updateAppSettingsSchema } from "../../../lib/schemas";
+import { invalidateCache } from "../../../lib/ttl-cache";
 import { SETTINGS_COOKIE_NAME, verifySessionToken } from "../../../lib/settings-auth";
 import { parseJsonBody } from "../../../lib/validate";
 
@@ -31,6 +32,9 @@ export async function PATCH(request: NextRequest) {
     legheAppKey !== undefined ? setAppSetting("LEGHE_APP_KEY", legheAppKey) : null,
     legheAuthToken !== undefined ? setAppSetting("LEGHE_AUTH_TOKEN", legheAuthToken) : null,
   ]);
+
+  // New credentials must take effect immediately, not after the TTL.
+  invalidateCache("leghe:");
 
   return NextResponse.json({ ok: true });
 }

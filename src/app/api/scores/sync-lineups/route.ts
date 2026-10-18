@@ -96,26 +96,52 @@ export async function POST(request: Request) {
   let unmatchedPlayers = 0;
   const notMatched: string[] = [];
 
-  for (const fixture of fixtures) {
-    const tIdHome = fixture.rosterIdHome ? externalTeamIdByRosterId.get(fixture.rosterIdHome) : undefined;
-    const tIdAway = fixture.rosterIdAway ? externalTeamIdByRosterId.get(fixture.rosterIdAway) : undefined;
-    if (!tIdHome || !tIdAway || !fixture.rosterIdHome || !fixture.rosterIdAway) {
-      notMatched.push(`Giornata ${matchdayNumber}: fixture ${fixture.id} senza squadre mappate`);
-      continue;
-    }
+  // Pull every fixture's lineup from leghe at once (they're independent and
+  // the client memoizes them), instead of one network round trip after
+  // another.
+  const fetched = await Promise.all(
+    fixtures.map(async (fixture) => {
+      const tIdHome = fixture.rosterIdHome ? externalTeamIdByRosterId.get(fixture.rosterIdHome) : undefined;
+      const tIdAway = fixture.rosterIdAway ? externalTeamIdByRosterId.get(fixture.rosterIdAway) : undefined;
+      if (!tIdHome || !tIdAway || !fixture.rosterIdHome || !fixture.rosterIdAway) {
+        notMatched.push(`Giornata ${matchdayNumber}: fixture ${fixture.id} senza squadre mappate`);
+        return null;
+      }
+      try {
+        const lineup = await fetchLegheTeamLineup(competitionId, matchdayNumber, championshipMatchDay, tIdHome, tIdAway);
+        return { fixture, rosterIdHome: fixture.rosterIdHome, rosterIdAway: fixture.rosterIdAway, lineup };
+      } catch (err) {
+        notMatched.push(`Giornata ${matchdayNumber}: ${err instanceof Error ? err.message : "errore formazioni"}`);
+        return null;
+      }
+    })
+  );
+  const resolved = fetched.filter((f): f is NonNullable<typeof f> => f !== null);
 
-    let lineup;
-    try {
-      lineup = await fetchLegheTeamLineup(competitionId, matchdayNumber, championshipMatchDay, tIdHome, tIdAway);
-    } catch (err) {
-      notMatched.push(`Giornata ${matchdayNumber}: ${err instanceof Error ? err.message : "errore formazioni"}`);
-      continue;
-    }
+  // One players lookup for every lineup in this round.
+  const allExternalIds = [
+    ...new Set(
+      resolved.flatMap(({ lineup }) =>
+        [...lineup.home.starts, ...lineup.home.bench, ...lineup.away.starts, ...lineup.away.bench].map((e) =>
+          String(e.pid)
+        )
+      )
+    ),
+  ];
+  const playerRows = allExternalIds.length
+    ? await db.select().from(players).where(inArray(players.externalId, allExternalIds))
+    : [];
+  const playerByExternalId = new Map(playerRows.filter((p) => p.externalId).map((p) => [p.externalId as string, p]));
 
-    for (const [rosterId, side] of [
-      [fixture.rosterIdHome, lineup.home] as const,
-      [fixture.rosterIdAway, lineup.away] as const,
-    ]) {
+  const sideJobs = resolved.flatMap(({ fixture, rosterIdHome, rosterIdAway, lineup }) => [
+    { fixture, rosterId: rosterIdHome, side: lineup.home },
+    { fixture, rosterId: rosterIdAway, side: lineup.away },
+  ]);
+
+  // Each side's writes depend on each other (lineup id first), but the
+  // sides themselves are independent — run them concurrently.
+  await Promise.all(
+    sideJobs.map(async ({ fixture, rosterId, side }) => {
       const [lineupRow] = await db
         .insert(matchdayLineups)
         .values({
@@ -141,12 +167,6 @@ export async function POST(request: Request) {
         ...side.starts.map((entry) => ({ role: "starter" as const, entry })),
         ...side.bench.map((entry) => ({ role: "bench" as const, entry })),
       ];
-
-      const externalIds = entries.map((e) => String(e.entry.pid));
-      const playerRows = externalIds.length
-        ? await db.select().from(players).where(inArray(players.externalId, externalIds))
-        : [];
-      const playerByExternalId = new Map(playerRows.filter((p) => p.externalId).map((p) => [p.externalId as string, p]));
 
       const lineupPlayerValues = [];
       const scoreValues = [];
@@ -182,26 +202,26 @@ export async function POST(request: Request) {
         });
       }
 
-      if (lineupPlayerValues.length > 0) {
-        await db.insert(lineupPlayers).values(lineupPlayerValues);
-      }
-      if (scoreValues.length > 0) {
-        await db
-          .insert(matchdayScores)
-          .values(scoreValues)
-          .onConflictDoUpdate({
-            target: [matchdayScores.seasonId, matchdayScores.playerId, matchdayScores.matchdayNumber],
-            set: {
-              fixtureId: sql`excluded.fixture_id`,
-              rosterId: sql`excluded.roster_id`,
-              vote: sql`excluded.vote`,
-              score: sql`excluded.score`,
-            },
-          });
-        playersScored += scoreValues.length;
-      }
-    }
-  }
+      await Promise.all([
+        lineupPlayerValues.length > 0 ? db.insert(lineupPlayers).values(lineupPlayerValues) : null,
+        scoreValues.length > 0
+          ? db
+              .insert(matchdayScores)
+              .values(scoreValues)
+              .onConflictDoUpdate({
+                target: [matchdayScores.seasonId, matchdayScores.playerId, matchdayScores.matchdayNumber],
+                set: {
+                  fixtureId: sql`excluded.fixture_id`,
+                  rosterId: sql`excluded.roster_id`,
+                  vote: sql`excluded.vote`,
+                  score: sql`excluded.score`,
+                },
+              })
+          : null,
+      ]);
+      playersScored += scoreValues.length;
+    })
+  );
 
   return NextResponse.json({ lineupsUpdated, playersScored, unmatchedPlayers, notMatched });
 }

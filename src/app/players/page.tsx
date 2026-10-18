@@ -9,6 +9,7 @@ import { Tabs } from "../../components/tabs";
 import { RoleBadge } from "../../components/role-badge";
 import { StatIcon } from "../../components/stat-icon";
 import { useTranslation } from "../../lib/i18n";
+import { fetchJsonShared } from "../../lib/fetch-json";
 
 type Player = {
   id: string;
@@ -141,9 +142,8 @@ export default function PlayersPage() {
 
   useEffect(() => {
     loadPlayers().finally(() => setLoading(false));
-    fetch("/api/seasons")
-      .then((res) => res.json())
-      .then((data: Season[]) => {
+    fetchJsonShared<Season[]>("/api/seasons")
+      .then((data) => {
         setSeasons(data);
         const active = data.find((s) => s.status === "active") ?? data[0];
         if (active) setSeasonId(active.id);
@@ -160,9 +160,8 @@ export default function PlayersPage() {
   // calendar actually has.
   useEffect(() => {
     if (!seasonId) return;
-    fetch(`/api/fixtures/current-matchday?seasonId=${seasonId}`)
-      .then((res) => res.json())
-      .then((data: { matchday: number; maxMatchday: number }) => {
+    fetchJsonShared<{ matchday: number; maxMatchday: number }>(`/api/fixtures/current-matchday?seasonId=${seasonId}`)
+      .then((data) => {
         setMaxMatchday(data.maxMatchday);
         setMatchdayNumber(data.matchday);
       });

@@ -3,47 +3,39 @@ import { eq } from "drizzle-orm";
 import { db } from "../../../../db";
 import { matchdayFixtures, participants, rosters, seasons } from "../../../../db/schema";
 import { fetchLegheCalendar, fetchLegheParticipants, fetchLegheTeamLineup } from "../../../../lib/leghe-fantacalcio-client";
+import { cached } from "../../../../lib/ttl-cache";
 
-// Centralizes the "what matchday are we on" logic that used to be
-// duplicated in app-shell.tsx, players/page.tsx and scores/page.tsx: last
-// played matchday, plus one extra check — if the next matchday's real
-// fixture already has both lineups locked (11 starters each side), Serie A
-// has effectively moved on even though nobody synced results yet, so treat
-// that as the current matchday instead.
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const seasonId = searchParams.get("seasonId");
-  if (!seasonId) {
-    return NextResponse.json({ error: "seasonId is required" }, { status: 400 });
-  }
+// The sidebar ticker, the dashboard and /scores all ask for this on every
+// navigation, and the answer only changes when a matchday finishes or a
+// lineup locks — so one computation is shared for a minute.
+const CURRENT_MATCHDAY_TTL_MS = 60_000;
 
-  const fixtures = await db
-    .select()
-    .from(matchdayFixtures)
-    .where(eq(matchdayFixtures.seasonId, seasonId));
+async function computeCurrentMatchday(seasonId: string): Promise<{ matchday: number; maxMatchday: number }> {
+  const [fixtures, [season]] = await Promise.all([
+    db.select().from(matchdayFixtures).where(eq(matchdayFixtures.seasonId, seasonId)),
+    db.select().from(seasons).where(eq(seasons.id, seasonId)),
+  ]);
 
   const played = fixtures.filter((f) => f.status === "played").map((f) => f.matchdayNumber);
   const maxMatchday = fixtures.length > 0 ? Math.max(...fixtures.map((f) => f.matchdayNumber)) : 1;
   let current = played.length > 0 ? Math.max(...played) : 1;
 
   const next = current + 1;
-  const [season] = await db.select().from(seasons).where(eq(seasons.id, seasonId));
   const competitionId = season?.leagueCompetitionId;
   if (next <= maxMatchday && competitionId) {
     const nextFixture = fixtures.find((f) => f.matchdayNumber === next && f.rosterIdHome && f.rosterIdAway);
     if (nextFixture?.rosterIdHome && nextFixture?.rosterIdAway) {
       try {
-        const ourRosterRows = await db
-          .select({ rosterId: rosters.id, teamName: participants.teamName, displayName: participants.displayName })
-          .from(rosters)
-          .innerJoin(participants, eq(participants.id, rosters.participantId))
-          .where(eq(rosters.seasonId, seasonId));
-        const rosterById = new Map(ourRosterRows.map((r) => [r.rosterId, (r.teamName || r.displayName).trim().toLowerCase()]));
-
-        const [calendar, legheParticipants] = await Promise.all([
+        const [ourRosterRows, calendar, legheParticipants] = await Promise.all([
+          db
+            .select({ rosterId: rosters.id, teamName: participants.teamName, displayName: participants.displayName })
+            .from(rosters)
+            .innerJoin(participants, eq(participants.id, rosters.participantId))
+            .where(eq(rosters.seasonId, seasonId)),
           fetchLegheCalendar(competitionId),
           fetchLegheParticipants(),
         ]);
+        const rosterById = new Map(ourRosterRows.map((r) => [r.rosterId, (r.teamName || r.displayName).trim().toLowerCase()]));
         const teamIdByName = new Map(legheParticipants.map((p) => [p.teamName.trim().toLowerCase(), p.teamId]));
         const tIdHome = teamIdByName.get(rosterById.get(nextFixture.rosterIdHome) ?? "");
         const tIdAway = teamIdByName.get(rosterById.get(nextFixture.rosterIdAway) ?? "");
@@ -62,5 +54,24 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ matchday: current, maxMatchday });
+  return { matchday: current, maxMatchday };
+}
+
+// Centralizes the "what matchday are we on" logic that used to be
+// duplicated in app-shell.tsx, players/page.tsx and scores/page.tsx: last
+// played matchday, plus one extra check — if the next matchday's real
+// fixture already has both lineups locked (11 starters each side), Serie A
+// has effectively moved on even though nobody synced results yet, so treat
+// that as the current matchday instead.
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const seasonId = searchParams.get("seasonId");
+  if (!seasonId) {
+    return NextResponse.json({ error: "seasonId is required" }, { status: 400 });
+  }
+
+  const result = await cached(`current-matchday:${seasonId}`, CURRENT_MATCHDAY_TTL_MS, () =>
+    computeCurrentMatchday(seasonId)
+  );
+  return NextResponse.json(result);
 }

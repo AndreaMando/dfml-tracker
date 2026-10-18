@@ -8,5 +8,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "seasonId is required" }, { status: 400 });
   }
   const seasons = await getPastSeasonsChampions(seasonId);
-  return NextResponse.json({ seasons });
+  // Past-season winners only change when a season is closed — safe for the
+  // CDN to serve for a minute and revalidate in the background.
+  return NextResponse.json({ seasons }, { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } });
 }

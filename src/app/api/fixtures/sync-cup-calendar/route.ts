@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../../../db";
 import { matchdayFixtures, participants, rosters, seasons } from "../../../../db/schema";
 import { fetchLegheCalendar, fetchLegheParticipants, parseResult } from "../../../../lib/leghe-fantacalcio-client";
@@ -58,9 +58,9 @@ export async function POST(request: Request) {
     if (rosterId) rosterIdByExternalTeamId.set(p.teamId, rosterId);
   }
 
-  let fixturesUpserted = 0;
   const unmatchedTeams = new Set<string>();
   const syncedKeys = new Set<string>();
+  const rowsToUpsert: (typeof matchdayFixtures.$inferInsert)[] = [];
 
   for (const round of calendar) {
     for (const match of round.matches) {
@@ -73,43 +73,48 @@ export async function POST(request: Request) {
       syncedKeys.add(`${round.matchDay}|${rosterIdHome}|${rosterIdAway}`);
 
       const goals = parseResult(match.result);
-      await db
-        .insert(matchdayFixtures)
-        .values({
-          seasonId,
-          matchdayNumber: round.matchDay,
-          competition: "cup",
-          linkedMatchdayNumber: round.championshipMatchDay,
-          rosterIdHome,
-          rosterIdAway,
-          scoreHome: round.calculated ? match.ptH.toString() : null,
-          scoreAway: round.calculated ? match.ptA.toString() : null,
-          goalsHome: round.calculated ? goals?.home ?? null : null,
-          goalsAway: round.calculated ? goals?.away ?? null : null,
-          status: round.calculated ? "played" : "scheduled",
-          playedAt: round.calculated ? new Date() : null,
-        })
-        .onConflictDoUpdate({
-          target: [
-            matchdayFixtures.seasonId,
-            matchdayFixtures.matchdayNumber,
-            matchdayFixtures.rosterIdHome,
-            matchdayFixtures.rosterIdAway,
-            matchdayFixtures.competition,
-          ],
-          set: {
-            linkedMatchdayNumber: round.championshipMatchDay,
-            scoreHome: round.calculated ? match.ptH.toString() : null,
-            scoreAway: round.calculated ? match.ptA.toString() : null,
-            goalsHome: round.calculated ? goals?.home ?? null : null,
-            goalsAway: round.calculated ? goals?.away ?? null : null,
-            status: round.calculated ? "played" : "scheduled",
-            playedAt: round.calculated ? new Date() : null,
-          },
-        });
-      fixturesUpserted += 1;
+      rowsToUpsert.push({
+        seasonId,
+        matchdayNumber: round.matchDay,
+        competition: "cup",
+        linkedMatchdayNumber: round.championshipMatchDay,
+        rosterIdHome,
+        rosterIdAway,
+        scoreHome: round.calculated ? match.ptH.toString() : null,
+        scoreAway: round.calculated ? match.ptA.toString() : null,
+        goalsHome: round.calculated ? goals?.home ?? null : null,
+        goalsAway: round.calculated ? goals?.away ?? null : null,
+        status: round.calculated ? "played" : "scheduled",
+        playedAt: round.calculated ? new Date() : null,
+      });
     }
   }
+
+  // One multi-row upsert instead of a round trip per match.
+  if (rowsToUpsert.length > 0) {
+    await db
+      .insert(matchdayFixtures)
+      .values(rowsToUpsert)
+      .onConflictDoUpdate({
+        target: [
+          matchdayFixtures.seasonId,
+          matchdayFixtures.matchdayNumber,
+          matchdayFixtures.rosterIdHome,
+          matchdayFixtures.rosterIdAway,
+          matchdayFixtures.competition,
+        ],
+        set: {
+          linkedMatchdayNumber: sql`excluded.linked_matchday_number`,
+          scoreHome: sql`excluded.score_home`,
+          scoreAway: sql`excluded.score_away`,
+          goalsHome: sql`excluded.goals_home`,
+          goalsAway: sql`excluded.goals_away`,
+          status: sql`excluded.status`,
+          playedAt: sql`excluded.played_at`,
+        },
+      });
+  }
+  const fixturesUpserted = rowsToUpsert.length;
 
   // The upsert above only ever adds rows. If the cup draw changes on
   // leghe.fantacalcio.it (redrawn pairings), the old pairings would linger

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "../lib/i18n";
+import { fetchJsonShared } from "../lib/fetch-json";
 import { SectionCard } from "../components/section-card";
 import { LiveMatchesFeed } from "../components/live-matches-feed";
 import { MatchdayFixturesCard } from "../components/matchday-fixtures-card";
@@ -29,29 +30,25 @@ export default function Home() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
 
   useEffect(() => {
-    fetch("/api/seasons")
-      .then((res) => res.json())
-      .then(async (seasons: Season[]) => {
-        const active = seasons.find((s) => s.status === "active") ?? seasons[0];
-        if (!active) return;
-        setSeasonId(active.id);
+    fetchJsonShared<Season[]>("/api/seasons").then(async (seasons) => {
+      const active = seasons.find((s) => s.status === "active") ?? seasons[0];
+      if (!active) return;
+      setSeasonId(active.id);
 
-        const [participants, standings, stats] = await Promise.all([
-          fetch("/api/participants")
-            .then((res) => res.json())
-            .then((rows: Participant[]) => rows.filter((p) => p.seasonId === active.id)),
-          fetch(`/api/standings?seasonId=${active.id}`).then((res) => res.json()) as Promise<StandingRow[]>,
-          fetch(`/api/players/stats?seasonId=${active.id}`).then((res) => res.json()) as Promise<PlayerStat[]>,
-          fetch(`/api/fixtures/current-matchday?seasonId=${active.id}`)
-            .then((res) => res.json())
-            .then((data: { matchday: number }) => setMatchday(data.matchday)),
-        ]);
+      const [participants, standings, stats] = await Promise.all([
+        fetchJsonShared<Participant[]>(`/api/participants?seasonId=${active.id}`),
+        fetchJsonShared<StandingRow[]>(`/api/standings?seasonId=${active.id}`),
+        fetchJsonShared<PlayerStat[]>(`/api/players/stats?seasonId=${active.id}`),
+        fetchJsonShared<{ matchday: number }>(`/api/fixtures/current-matchday?seasonId=${active.id}`).then((data) =>
+          setMatchday(data.matchday)
+        ),
+      ]);
 
-        setParticipantsCount(participants.length);
-        setLeaderName(standings[0]?.rosterName ?? null);
-        const topScorer = [...stats].sort((a, b) => b.totalScore - a.totalScore)[0];
-        setTopPlayerName(topScorer && topScorer.totalScore > 0 ? topScorer.fullName : null);
-      });
+      setParticipantsCount(participants.length);
+      setLeaderName(standings[0]?.rosterName ?? null);
+      const topScorer = [...stats].sort((a, b) => b.totalScore - a.totalScore)[0];
+      setTopPlayerName(topScorer && topScorer.totalScore > 0 ? topScorer.fullName : null);
+    });
   }, []);
 
   useEffect(() => {

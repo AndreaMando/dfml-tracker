@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "../../../db";
 import { matchdayFixtures, participants, rosters } from "../../../db/schema";
 import { createFixtureSchema } from "../../../lib/schemas";
@@ -21,39 +22,37 @@ export async function GET(request: Request) {
     eq(matchdayFixtures.competition, competition as "league" | "cup"),
   ];
 
+  // The fantasy team name is set on the Participants page (teamName) —
+  // that's the single source of truth everywhere it's displayed, rosters.name
+  // is only a last-resort legacy fallback. One query: both sides' roster and
+  // participant are LEFT JOINed (aliased) instead of three round trips.
+  const homeRoster = alias(rosters, "home_roster");
+  const awayRoster = alias(rosters, "away_roster");
+  const homeParticipant = alias(participants, "home_participant");
+  const awayParticipant = alias(participants, "away_participant");
+
   const rows = await db
-    .select()
+    .select({
+      fixture: matchdayFixtures,
+      homeTeamName: homeParticipant.teamName,
+      homeDisplayName: homeParticipant.displayName,
+      homeRosterName: homeRoster.name,
+      awayTeamName: awayParticipant.teamName,
+      awayDisplayName: awayParticipant.displayName,
+      awayRosterName: awayRoster.name,
+    })
     .from(matchdayFixtures)
+    .leftJoin(homeRoster, eq(homeRoster.id, matchdayFixtures.rosterIdHome))
+    .leftJoin(homeParticipant, eq(homeParticipant.id, homeRoster.participantId))
+    .leftJoin(awayRoster, eq(awayRoster.id, matchdayFixtures.rosterIdAway))
+    .leftJoin(awayParticipant, eq(awayParticipant.id, awayRoster.participantId))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(matchdayFixtures.matchdayNumber);
 
-  // The fantasy team name is set on the Participants page (teamName) —
-  // that's the single source of truth everywhere it's displayed, rosters.name
-  // is only a last-resort legacy fallback. Resolved in JS (one small lookup
-  // query) rather than a raw-SQL subquery join, which drizzle doesn't alias
-  // correctly for a computed column referenced from the outer select.
-  const rosterIds = [
-    ...new Set(rows.flatMap((f) => [f.rosterIdHome, f.rosterIdAway]).filter((id): id is string => !!id)),
-  ];
-  const rosterRows = rosterIds.length
-    ? await db.select().from(rosters).where(inArray(rosters.id, rosterIds))
-    : [];
-  const participantIds = [...new Set(rosterRows.map((r) => r.participantId))];
-  const participantRows = participantIds.length
-    ? await db.select().from(participants).where(inArray(participants.id, participantIds))
-    : [];
-  const participantById = new Map(participantRows.map((p) => [p.id, p]));
-  const teamNameByRosterId = new Map(
-    rosterRows.map((r) => {
-      const participant = participantById.get(r.participantId);
-      return [r.id, participant?.teamName || participant?.displayName || r.name];
-    })
-  );
-
-  const result = rows.map((f) => ({
-    ...f,
-    homeName: f.rosterIdHome ? teamNameByRosterId.get(f.rosterIdHome) ?? null : null,
-    awayName: f.rosterIdAway ? teamNameByRosterId.get(f.rosterIdAway) ?? null : null,
+  const result = rows.map((r) => ({
+    ...r.fixture,
+    homeName: r.fixture.rosterIdHome ? r.homeTeamName || r.homeDisplayName || r.homeRosterName || null : null,
+    awayName: r.fixture.rosterIdAway ? r.awayTeamName || r.awayDisplayName || r.awayRosterName || null : null,
   }));
 
   return NextResponse.json(result);

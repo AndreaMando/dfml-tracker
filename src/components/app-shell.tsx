@@ -19,6 +19,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useTranslation } from "../lib/i18n";
+import { fetchJsonShared } from "../lib/fetch-json";
 
 const navigation = [
   { href: "/", labelKey: "Dashboard", icon: LayoutDashboard },
@@ -80,22 +81,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     function loadTicker() {
-      fetch("/api/seasons")
-        .then((res) => res.json())
-        .then(async (seasons: { id: string; name: string; status: string }[]) => {
+      fetchJsonShared<{ id: string; name: string; status: string }[]>("/api/seasons")
+        .then(async (seasons) => {
           const active = seasons.find((s) => s.status === "active") ?? seasons[0];
           if (!active) return;
 
           const [participants, currentMatchday, marketSessions] = await Promise.all([
-            fetch("/api/participants")
-              .then((res) => res.json())
-              .then((rows: { seasonId: string }[]) => rows.filter((r) => r.seasonId === active.id)),
-            fetch(`/api/fixtures/current-matchday?seasonId=${active.id}`).then((res) => res.json()) as Promise<{
-              matchday: number;
-            }>,
-            fetch(`/api/market?seasonId=${active.id}`).then((res) => res.json()) as Promise<
-              { startDate: string | null; endDate: string | null }[]
-            >,
+            fetchJsonShared<{ seasonId: string }[]>(`/api/participants?seasonId=${active.id}`),
+            fetchJsonShared<{ matchday: number }>(`/api/fixtures/current-matchday?seasonId=${active.id}`),
+            fetchJsonShared<{ startDate: string | null; endDate: string | null }[]>(
+              `/api/market?seasonId=${active.id}`
+            ),
           ]);
 
           const matchday = currentMatchday.matchday;

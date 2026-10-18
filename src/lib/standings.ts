@@ -30,7 +30,19 @@ export type StandingsRow = {
  * bonus).
  */
 export async function computeStandings(seasonId: string): Promise<StandingsRow[]> {
-  const seasonRosters = await db.select().from(rosters).where(eq(rosters.seasonId, seasonId));
+  // Independent of each other — fetch concurrently (each is a network round
+  // trip to the database).
+  const [seasonRosters, fixtures, penaltyRows] = await Promise.all([
+    db.select().from(rosters).where(eq(rosters.seasonId, seasonId)),
+    db.select().from(matchdayFixtures).where(eq(matchdayFixtures.seasonId, seasonId)),
+    // Manual standings-point deductions (e.g. a rule violation penalty) —
+    // separate from financialTransactions, which only ever moves credits.
+    db
+      .select({ rosterId: standingsPenalties.rosterId, total: sqlOp<number>`sum(${standingsPenalties.points})`.mapWith(Number) })
+      .from(standingsPenalties)
+      .where(eq(standingsPenalties.seasonId, seasonId))
+      .groupBy(standingsPenalties.rosterId),
+  ]);
   const table = new Map<string, Omit<StandingsRow, "rosterName" | "penaltyPoints">>();
   for (const roster of seasonRosters) {
     table.set(roster.id, {
@@ -43,11 +55,6 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
       totalScore: 0,
     });
   }
-
-  const fixtures = await db
-    .select()
-    .from(matchdayFixtures)
-    .where(eq(matchdayFixtures.seasonId, seasonId));
 
   for (const fixture of fixtures) {
     if (fixture.status !== "played") continue;
@@ -102,13 +109,6 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
       return [r.id, participant?.teamName || participant?.displayName || r.name];
     })
   );
-  // Manual standings-point deductions (e.g. a rule violation penalty) —
-  // separate from financialTransactions, which only ever moves credits.
-  const penaltyRows = await db
-    .select({ rosterId: standingsPenalties.rosterId, total: sqlOp<number>`sum(${standingsPenalties.points})`.mapWith(Number) })
-    .from(standingsPenalties)
-    .where(eq(standingsPenalties.seasonId, seasonId))
-    .groupBy(standingsPenalties.rosterId);
   const penaltyByRosterId = new Map(penaltyRows.map((r) => [r.rosterId, r.total]));
 
   const rows = Array.from(table.values()).map((row) => {
@@ -116,29 +116,32 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
     return { ...row, points: row.points - penaltyPoints, penaltyPoints };
   });
 
-  // Cache into standings table (upsert per season+roster).
-  for (const row of rows) {
+  // Cache into standings table (upsert per season+roster) — one multi-row
+  // statement; this runs on every GET, so a write per team added up.
+  if (rows.length > 0) {
     await db
       .insert(standings)
-      .values({
-        seasonId,
-        rosterId: row.rosterId,
-        played: row.played,
-        won: row.won,
-        drawn: row.drawn,
-        lost: row.lost,
-        points: row.points,
-        totalScore: row.totalScore.toString(),
-      })
-      .onConflictDoUpdate({
-        target: [standings.seasonId, standings.rosterId],
-        set: {
+      .values(
+        rows.map((row) => ({
+          seasonId,
+          rosterId: row.rosterId,
           played: row.played,
           won: row.won,
           drawn: row.drawn,
           lost: row.lost,
           points: row.points,
           totalScore: row.totalScore.toString(),
+        }))
+      )
+      .onConflictDoUpdate({
+        target: [standings.seasonId, standings.rosterId],
+        set: {
+          played: sqlOp`excluded.played`,
+          won: sqlOp`excluded.won`,
+          drawn: sqlOp`excluded.drawn`,
+          lost: sqlOp`excluded.lost`,
+          points: sqlOp`excluded.points`,
+          totalScore: sqlOp`excluded.total_score`,
           updatedAt: new Date(),
         },
       });

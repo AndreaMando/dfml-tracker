@@ -9,6 +9,7 @@ import {
   parseResult,
 } from "../../../../lib/leghe-fantacalcio-client";
 import { syncFixtureResultsSchema } from "../../../../lib/schemas";
+import { invalidateCache } from "../../../../lib/ttl-cache";
 import { parseJsonBody } from "../../../../lib/validate";
 
 export async function POST(request: Request) {
@@ -39,7 +40,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const rosterRows = await db.select().from(rosters).where(eq(rosters.seasonId, seasonId));
+  const [rosterRows, existingFixtures] = await Promise.all([
+    db.select().from(rosters).where(eq(rosters.seasonId, seasonId)),
+    // League fixtures only — the cup has its own sync and its own rows.
+    db
+      .select()
+      .from(matchdayFixtures)
+      .where(and(eq(matchdayFixtures.seasonId, seasonId), eq(matchdayFixtures.competition, "league"))),
+  ]);
   const rosterByName = new Map(rosterRows.map((r) => [r.name, r.id]));
 
   const externalIdToRosterId = new Map<number, string>();
@@ -51,8 +59,13 @@ export async function POST(request: Request) {
     else unresolvedTeams.push(team.name);
   }
 
+  const fixtureByPairing = new Map(
+    existingFixtures.map((f) => [`${f.matchdayNumber}|${f.rosterIdHome}|${f.rosterIdAway}`, f])
+  );
+
   let updated = 0;
   const notMatched: string[] = [];
+  const writes: Promise<unknown>[] = [];
 
   for (const matchday of calendar) {
     if (!matchday.calculated) continue;
@@ -67,30 +80,47 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const result = await db
-        .update(matchdayFixtures)
-        .set({
-          scoreHome: match.ptH.toString(),
-          scoreAway: match.ptA.toString(),
-          goalsHome: goals?.home ?? null,
-          goalsAway: goals?.away ?? null,
-          status: "played",
-          playedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(matchdayFixtures.seasonId, seasonId),
-            eq(matchdayFixtures.matchdayNumber, matchday.matchDay),
-            eq(matchdayFixtures.rosterIdHome, rosterIdHome),
-            eq(matchdayFixtures.rosterIdAway, rosterIdAway)
-          )
-        )
-        .returning({ id: matchdayFixtures.id });
+      const fixture = fixtureByPairing.get(`${matchday.matchDay}|${rosterIdHome}|${rosterIdAway}`);
+      if (!fixture) {
+        notMatched.push(`Giornata ${matchday.matchDay}: nessuna fixture programmata per questo incontro`);
+        continue;
+      }
+      updated += 1;
 
-      if (result[0]) updated += 1;
-      else notMatched.push(`Giornata ${matchday.matchDay}: nessuna fixture programmata per questo incontro`);
+      // This route runs on every /scores load and the vast majority of
+      // calculated matchdays haven't changed since last time — only write
+      // the rows whose result actually differs.
+      const scoreHome = match.ptH.toString();
+      const scoreAway = match.ptA.toString();
+      const goalsHome = goals?.home ?? null;
+      const goalsAway = goals?.away ?? null;
+      const unchanged =
+        fixture.status === "played" &&
+        Number(fixture.scoreHome) === Number(scoreHome) &&
+        Number(fixture.scoreAway) === Number(scoreAway) &&
+        fixture.goalsHome === goalsHome &&
+        fixture.goalsAway === goalsAway;
+      if (unchanged) continue;
+
+      writes.push(
+        db
+          .update(matchdayFixtures)
+          .set({
+            scoreHome,
+            scoreAway,
+            goalsHome,
+            goalsAway,
+            status: "played",
+            playedAt: fixture.status === "played" ? fixture.playedAt : new Date(),
+          })
+          .where(eq(matchdayFixtures.id, fixture.id))
+      );
     }
   }
+
+  await Promise.all(writes);
+  // A matchday that just flipped to "played" moves the current matchday.
+  if (writes.length > 0) invalidateCache("current-matchday:");
 
   return NextResponse.json({ updated, unresolvedTeams, notMatched });
 }

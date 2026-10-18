@@ -1,11 +1,12 @@
 import { getAppSetting } from "./app-settings";
+import { cached } from "./ttl-cache";
 
 const API_BASE = "https://apileague.fantacalcio.it";
 
 // Session tokens for leghe.fantacalcio.it — stored in the DB (edited from
 // the protected /settings page) instead of env vars, since they expire and
 // need updating without a redeploy.
-async function authHeaders(): Promise<Record<string, string>> {
+async function loadAuthHeaders(): Promise<Record<string, string>> {
   const [appKey, authToken] = await Promise.all([
     getAppSetting("LEGHE_APP_KEY"),
     getAppSetting("LEGHE_AUTH_TOKEN"),
@@ -26,6 +27,20 @@ async function authHeaders(): Promise<Record<string, string>> {
   };
 }
 
+// Every leghe call needs these, and reading them is two DB queries — memoized
+// briefly so one page load's burst of upstream calls shares a single read.
+// Dropped via invalidateCache("leghe:") when the Settings page saves new ones.
+function authHeaders(): Promise<Record<string, string>> {
+  return cached("leghe:auth", 60_000, loadAuthHeaders);
+}
+
+// Upstream data changes slowly relative to how often one page load asks for
+// it (calendar/lineups are requested by several routes in the same burst),
+// so short TTLs collapse the duplicates without making results feel stale.
+const CALENDAR_TTL_MS = 30_000;
+const LINEUP_TTL_MS = 30_000;
+const DIRECTORY_TTL_MS = 10 * 60_000; // team/participant lists: effectively static in-season
+
 export type LegheMatch = {
   tIdH: number;
   tIdA: number;
@@ -44,15 +59,17 @@ export type LegheMatchday = {
   matches: LegheMatch[];
 };
 
-export async function fetchLegheCalendar(competitionId: string): Promise<LegheMatchday[]> {
-  const res = await fetch(
-    `${API_BASE}/onboarding/v1/league/competition/calendar/${competitionId}`,
-    { headers: await authHeaders() }
-  );
-  if (!res.ok) {
-    throw new Error(`Calendario leghe.fantacalcio.it: HTTP ${res.status}`);
-  }
-  return res.json();
+export function fetchLegheCalendar(competitionId: string): Promise<LegheMatchday[]> {
+  return cached(`leghe:calendar:${competitionId}`, CALENDAR_TTL_MS, async () => {
+    const res = await fetch(
+      `${API_BASE}/onboarding/v1/league/competition/calendar/${competitionId}`,
+      { headers: await authHeaders() }
+    );
+    if (!res.ok) {
+      throw new Error(`Calendario leghe.fantacalcio.it: HTTP ${res.status}`);
+    }
+    return res.json();
+  });
 }
 
 export type LegheTeam = { id: number; name: string };
@@ -74,15 +91,17 @@ export function normalizeLegheTeamName(raw: string): string | null {
   return TEAM_ALIASES[raw.trim().toLowerCase()] ?? null;
 }
 
-export async function fetchLegheTeams(): Promise<LegheTeam[]> {
-  const res = await fetch(`${API_BASE}/onboarding/v1/league/teams`, {
-    headers: await authHeaders(),
+export function fetchLegheTeams(): Promise<LegheTeam[]> {
+  return cached("leghe:teams", DIRECTORY_TTL_MS, async () => {
+    const res = await fetch(`${API_BASE}/onboarding/v1/league/teams`, {
+      headers: await authHeaders(),
+    });
+    if (!res.ok) {
+      throw new Error(`Teams leghe.fantacalcio.it: HTTP ${res.status}`);
+    }
+    const body = await res.json();
+    return (body.data ?? []).map((t: { id: number; n: string }) => ({ id: t.id, name: t.n }));
   });
-  if (!res.ok) {
-    throw new Error(`Teams leghe.fantacalcio.it: HTTP ${res.status}`);
-  }
-  const body = await res.json();
-  return (body.data ?? []).map((t: { id: number; n: string }) => ({ id: t.id, name: t.n }));
 }
 
 /** Parses a "H-A" goals string (e.g. "2-1") into { home, away }, or null if unplayed ("-"). */
@@ -99,21 +118,23 @@ export function parseResult(result: string): { home: number; away: number } | nu
 // table is needed here: match case-insensitively on the raw name.
 export type LegheParticipant = { teamId: number; teamName: string };
 
-export async function fetchLegheParticipants(): Promise<LegheParticipant[]> {
-  const res = await fetch(
-    `${API_BASE}/onboarding/v1/invitation/participants?pageNumber=1&pageSize=1000`,
-    { headers: await authHeaders() }
-  );
-  if (!res.ok) {
-    throw new Error(`Participants leghe.fantacalcio.it: HTTP ${res.status}`);
-  }
-  const body = await res.json();
-  // The API also returns each coach's name/email — deliberately dropped here,
-  // this app has no use for it and it's personal data we shouldn't retain.
-  return (body ?? []).map((t: { teamId: number; teamName: string }) => ({
-    teamId: t.teamId,
-    teamName: t.teamName,
-  }));
+export function fetchLegheParticipants(): Promise<LegheParticipant[]> {
+  return cached("leghe:participants", DIRECTORY_TTL_MS, async () => {
+    const res = await fetch(
+      `${API_BASE}/onboarding/v1/invitation/participants?pageNumber=1&pageSize=1000`,
+      { headers: await authHeaders() }
+    );
+    if (!res.ok) {
+      throw new Error(`Participants leghe.fantacalcio.it: HTTP ${res.status}`);
+    }
+    const body = await res.json();
+    // The API also returns each coach's name/email — deliberately dropped here,
+    // this app has no use for it and it's personal data we shouldn't retain.
+    return (body ?? []).map((t: { teamId: number; teamName: string }) => ({
+      teamId: t.teamId,
+      teamName: t.teamName,
+    }));
+  });
 }
 
 export type LegheLineupPlayer = {
@@ -137,21 +158,21 @@ export type LegheMatchLineup = {
   away: LegheTeamLineup;
 };
 
-export async function fetchLegheTeamLineup(
+export function fetchLegheTeamLineup(
   competitionId: string,
   matchDay: number,
   championshipMatchDay: number,
   tIdHome: number,
   tIdAway: number
 ): Promise<LegheMatchLineup> {
-  const res = await fetch(
-    `${API_BASE}/gaming/v1/teamLineup/${competitionId}/${matchDay}/${championshipMatchDay}/${tIdHome}/${tIdAway}`,
-    { headers: await authHeaders() }
-  );
-  if (!res.ok) {
-    throw new Error(`Team lineup leghe.fantacalcio.it: HTTP ${res.status}`);
-  }
-  return res.json();
+  const path = `${competitionId}/${matchDay}/${championshipMatchDay}/${tIdHome}/${tIdAway}`;
+  return cached(`leghe:lineup:${path}`, LINEUP_TTL_MS, async () => {
+    const res = await fetch(`${API_BASE}/gaming/v1/teamLineup/${path}`, { headers: await authHeaders() });
+    if (!res.ok) {
+      throw new Error(`Team lineup leghe.fantacalcio.it: HTTP ${res.status}`);
+    }
+    return res.json();
+  });
 }
 
 // Classic-role code used by /onboarding/v1/league/players — same 1-4 mapping

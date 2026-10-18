@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../../db";
 import {
   lineupPlayers,
@@ -67,10 +67,12 @@ export async function GET(request: Request) {
       )
     );
 
-  const result = await Promise.all(
-    lineupRows.map(async (lineup) => {
-      const rows = await db
+  // All lineups' players in a single query (instead of one per lineup).
+  const lineupIds = lineupRows.map((l) => l.lineupId);
+  const playerRows = lineupIds.length
+    ? await db
         .select({
+          lineupId: lineupPlayers.lineupId,
           playerId: players.id,
           fullName: players.fullName,
           position: players.position,
@@ -89,17 +91,21 @@ export async function GET(request: Request) {
             eq(matchdayScores.matchdayNumber, realMatchdayNumber)
           )
         )
-        .where(eq(lineupPlayers.lineupId, lineup.lineupId));
+        .where(inArray(lineupPlayers.lineupId, lineupIds))
+    : [];
 
-      return {
-        rosterId: lineup.rosterId,
-        rosterName: lineup.rosterName || lineup.displayName,
-        formation: lineup.formation,
-        starters: rows.filter((r) => r.role === "starter"),
-        bench: rows.filter((r) => r.role === "bench"),
-      };
-    })
-  );
+  const result = lineupRows.map((lineup) => {
+    const rows = playerRows
+      .filter((r) => r.lineupId === lineup.lineupId)
+      .map(({ lineupId: _lineupId, ...player }) => player);
+    return {
+      rosterId: lineup.rosterId,
+      rosterName: lineup.rosterName || lineup.displayName,
+      formation: lineup.formation,
+      starters: rows.filter((r) => r.role === "starter"),
+      bench: rows.filter((r) => r.role === "bench"),
+    };
+  });
 
   return NextResponse.json(result);
 }

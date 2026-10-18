@@ -7,6 +7,8 @@ import { SectionCard } from "../../components/section-card";
 import { RoleBadge } from "../../components/role-badge";
 import { useTranslation } from "../../lib/i18n";
 import { cupRoundLabelKey } from "../../lib/cup";
+import { fetchJsonShared } from "../../lib/fetch-json";
+import { shouldSync } from "../../lib/sync-throttle";
 
 type Season = { id: string; name: string; status: string };
 type Fixture = {
@@ -202,9 +204,8 @@ export default function ScoresPage() {
   const [openCupLineupFixtureId, setOpenCupLineupFixtureId] = useState("");
 
   useEffect(() => {
-    fetch("/api/seasons")
-      .then((res) => res.json())
-      .then((data: Season[]) => {
+    fetchJsonShared<Season[]>("/api/seasons")
+      .then((data) => {
         setSeasons(data);
         const active = data.find((s) => s.status === "active") ?? data[0];
         if (active) setSeasonId(active.id);
@@ -217,9 +218,8 @@ export default function ScoresPage() {
   // calendar actually has.
   useEffect(() => {
     if (!seasonId) return;
-    fetch(`/api/fixtures/current-matchday?seasonId=${seasonId}`)
-      .then((res) => res.json())
-      .then((data: { matchday: number; maxMatchday: number }) => {
+    fetchJsonShared<{ matchday: number; maxMatchday: number }>(`/api/fixtures/current-matchday?seasonId=${seasonId}`)
+      .then((data) => {
         setMaxMatchday(data.maxMatchday);
         setMatchdayNumber(data.matchday);
       });
@@ -248,8 +248,13 @@ export default function ScoresPage() {
   // leghe.fantacalcio.it every time the page loads instead of a manual
   // button. Season-wide (covers every calculated matchday in one call), so
   // it only needs to re-run when the season changes.
+  // Re-syncing on every visit used to fire a leghe call plus a DB write per
+  // matchday each time; the data only moves when a matchday closes, so skip
+  // the POST if this season synced a minute ago (the fixtures effect above
+  // still loads whatever is in the DB).
   useEffect(() => {
     if (!seasonId) return;
+    if (!shouldSync(`results:${seasonId}`, 60_000)) return;
     fetch("/api/fixtures/sync-results", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -274,6 +279,9 @@ export default function ScoresPage() {
   useEffect(() => {
     if (!seasonId || !matchdayNumber) return;
     loadLineups();
+    // Live votes: refresh at most every 30 s per matchday (matches the
+    // server-side upstream cache, so a faster re-sync couldn't see newer data).
+    if (!shouldSync(`lineups:${seasonId}:${matchdayNumber}:league`, 30_000)) return;
     fetch("/api/scores/sync-lineups", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -294,11 +302,14 @@ export default function ScoresPage() {
     let cancelled = false;
 
     async function syncCup() {
-      await fetch("/api/fixtures/sync-cup-calendar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seasonId }),
-      }).catch(() => null);
+      // The cup draw changes rarely — re-sync its calendar every 5 minutes at most.
+      if (shouldSync(`cup-calendar:${seasonId}`, 5 * 60_000)) {
+        await fetch("/api/fixtures/sync-cup-calendar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seasonId }),
+        }).catch(() => null);
+      }
 
       const fixturesRes = await fetch(
         `/api/fixtures?seasonId=${seasonId}&competition=cup&linkedMatchdayNumber=${matchdayNumber}`
@@ -312,11 +323,13 @@ export default function ScoresPage() {
         return;
       }
 
-      await fetch("/api/scores/sync-lineups", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seasonId, matchdayNumber: cupRound, competition: "cup" }),
-      }).catch(() => null);
+      if (shouldSync(`lineups:${seasonId}:${cupRound}:cup`, 30_000)) {
+        await fetch("/api/scores/sync-lineups", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seasonId, matchdayNumber: cupRound, competition: "cup" }),
+        }).catch(() => null);
+      }
 
       const lineupsRes = await fetch(
         `/api/lineups?seasonId=${seasonId}&matchdayNumber=${cupRound}&competition=cup`
