@@ -70,6 +70,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { t, lang, setLang } = useTranslation();
   const [ticker, setTicker] = useState<TickerProps>({});
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // True while leghe.fantacalcio.it rejects our stored session token — sync
+  // silently stops in that case, so say it out loud instead of letting the
+  // site look frozen.
+  const [legheTokenExpired, setLegheTokenExpired] = useState(false);
+
+  useEffect(() => {
+    function checkLeghe() {
+      fetch("/api/leghe/status")
+        .then((res) => res.json())
+        .then((status: { ok: boolean; reason?: string }) => setLegheTokenExpired(!status.ok && status.reason === "auth"))
+        .catch(() => null);
+    }
+    checkLeghe();
+    const interval = setInterval(checkLeghe, 5 * 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const activeItem = navigation.find(
     (item) => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
@@ -126,6 +142,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <Ticker {...ticker} />
+
+      {legheTokenExpired && (
+        <div role="alert" className="w-full bg-rose-700 text-white">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm lg:px-6">
+            <span>{t("Data sync paused: the leghe.fantacalcio.it token expired.")}</span>
+            <Link href="/settings" className="font-semibold underline underline-offset-2">
+              {t("Update it in Settings")}
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row lg:px-6">
         <aside className="w-full shrink-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 lg:w-64">

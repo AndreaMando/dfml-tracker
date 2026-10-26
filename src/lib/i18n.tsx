@@ -205,6 +205,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "Serie A live": "Serie A live",
     "LIVE": "LIVE",
     "Championship": "Campionato",
+    "Data sync paused: the leghe.fantacalcio.it token expired.": "Aggiornamento dati sospeso: il token di leghe.fantacalcio.it è scaduto.",
+    "Update it in Settings": "Aggiornalo in Impostazioni",
     "In progress": "In corso",
     "Finished matches": "Partite terminate",
     "Show all matches": "Mostra tutte le partite",

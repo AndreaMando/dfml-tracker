@@ -3,6 +3,27 @@ import { cached } from "./ttl-cache";
 
 const API_BASE = "https://apileague.fantacalcio.it";
 
+/**
+ * The upstream session token was rejected (401/403). The token's own `exp`
+ * claim can be a year out while the server has already revoked the session,
+ * so this is the one failure the admin can fix — by pasting a fresh token in
+ * Impostazioni — and it gets its own type and a message that says so,
+ * instead of a bare "HTTP 403".
+ */
+export class LegheAuthError extends Error {
+  constructor(readonly status: number) {
+    super(
+      `Token leghe.fantacalcio.it scaduto o non valido (HTTP ${status}). Aggiornalo nella pagina Impostazioni.`
+    );
+    this.name = "LegheAuthError";
+  }
+}
+
+function legheHttpError(label: string, status: number): Error {
+  if (status === 401 || status === 403) return new LegheAuthError(status);
+  return new Error(`${label} leghe.fantacalcio.it: HTTP ${status}`);
+}
+
 // Session tokens for leghe.fantacalcio.it — stored in the DB (edited from
 // the protected /settings page) instead of env vars, since they expire and
 // need updating without a redeploy.
@@ -41,6 +62,22 @@ const CALENDAR_TTL_MS = 30_000;
 const LINEUP_TTL_MS = 30_000;
 const DIRECTORY_TTL_MS = 10 * 60_000; // team/participant lists: effectively static in-season
 
+export type LegheAuthCheck = { ok: true } | { ok: false; reason: "auth" | "unreachable"; status?: number };
+
+/** Cheap, uncached call that tells whether the stored credentials are still accepted. */
+export async function checkLegheAuth(): Promise<LegheAuthCheck> {
+  try {
+    const res = await fetch(`${API_BASE}/onboarding/v1/league/teams`, { headers: await authHeaders() });
+    if (res.ok) return { ok: true };
+    if (res.status === 401 || res.status === 403) return { ok: false, reason: "auth", status: res.status };
+    return { ok: false, reason: "unreachable", status: res.status };
+  } catch (err) {
+    // Credentials not configured at all counts as an auth problem too.
+    if (err instanceof Error && err.message.includes("non configurati")) return { ok: false, reason: "auth" };
+    return { ok: false, reason: "unreachable" };
+  }
+}
+
 export type LegheMatch = {
   tIdH: number;
   tIdA: number;
@@ -66,7 +103,7 @@ export function fetchLegheCalendar(competitionId: string): Promise<LegheMatchday
       { headers: await authHeaders() }
     );
     if (!res.ok) {
-      throw new Error(`Calendario leghe.fantacalcio.it: HTTP ${res.status}`);
+      throw legheHttpError("Calendario", res.status);
     }
     return res.json();
   });
@@ -97,7 +134,7 @@ export function fetchLegheTeams(): Promise<LegheTeam[]> {
       headers: await authHeaders(),
     });
     if (!res.ok) {
-      throw new Error(`Teams leghe.fantacalcio.it: HTTP ${res.status}`);
+      throw legheHttpError("Teams", res.status);
     }
     const body = await res.json();
     return (body.data ?? []).map((t: { id: number; n: string }) => ({ id: t.id, name: t.n }));
@@ -125,7 +162,7 @@ export function fetchLegheParticipants(): Promise<LegheParticipant[]> {
       { headers: await authHeaders() }
     );
     if (!res.ok) {
-      throw new Error(`Participants leghe.fantacalcio.it: HTTP ${res.status}`);
+      throw legheHttpError("Participants", res.status);
     }
     const body = await res.json();
     // The API also returns each coach's name/email — deliberately dropped here,
@@ -169,7 +206,7 @@ export function fetchLegheTeamLineup(
   return cached(`leghe:lineup:${path}`, LINEUP_TTL_MS, async () => {
     const res = await fetch(`${API_BASE}/gaming/v1/teamLineup/${path}`, { headers: await authHeaders() });
     if (!res.ok) {
-      throw new Error(`Team lineup leghe.fantacalcio.it: HTTP ${res.status}`);
+      throw legheHttpError("Team lineup", res.status);
     }
     return res.json();
   });
@@ -227,7 +264,7 @@ export async function fetchLegheListone(): Promise<LegheListonePlayer[]> {
     headers: await authHeaders(),
   });
   if (!res.ok) {
-    throw new Error(`Listone leghe.fantacalcio.it: HTTP ${res.status}`);
+    throw legheHttpError("Listone", res.status);
   }
   const body: { players: RawLegheListonePlayer[] } = await res.json();
 
