@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../../../db";
 import { matchdayFixtures, participants, rosters, seasons } from "../../../../db/schema";
 import { fetchLegheCalendar, fetchLegheParticipants, fetchLegheTeamLineup } from "../../../../lib/leghe-fantacalcio-client";
@@ -12,7 +12,12 @@ const CURRENT_MATCHDAY_TTL_MS = 60_000;
 
 async function computeCurrentMatchday(seasonId: string): Promise<{ matchday: number; maxMatchday: number }> {
   const [fixtures, [season]] = await Promise.all([
-    db.select().from(matchdayFixtures).where(eq(matchdayFixtures.seasonId, seasonId)),
+    // League only — cup rounds are numbered separately (1, 2, ...) and would
+    // otherwise be mistaken for league matchdays.
+    db
+      .select()
+      .from(matchdayFixtures)
+      .where(and(eq(matchdayFixtures.seasonId, seasonId), eq(matchdayFixtures.competition, "league"))),
     db.select().from(seasons).where(eq(seasons.id, seasonId)),
   ]);
 

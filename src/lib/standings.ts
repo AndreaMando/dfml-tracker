@@ -1,4 +1,4 @@
-import { eq, inArray, sql as sqlOp } from "drizzle-orm";
+import { and, eq, inArray, sql as sqlOp } from "drizzle-orm";
 import { db } from "../db";
 import {
   creditsBonusRules,
@@ -34,7 +34,13 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
   // trip to the database).
   const [seasonRosters, fixtures, penaltyRows] = await Promise.all([
     db.select().from(rosters).where(eq(rosters.seasonId, seasonId)),
-    db.select().from(matchdayFixtures).where(eq(matchdayFixtures.seasonId, seasonId)),
+    // League fixtures only: the cup lives in the same table (competition =
+    // "cup") but must never count towards the league table — it has its own
+    // bracket on the Standings page.
+    db
+      .select()
+      .from(matchdayFixtures)
+      .where(and(eq(matchdayFixtures.seasonId, seasonId), eq(matchdayFixtures.competition, "league"))),
     // Manual standings-point deductions (e.g. a rule violation penalty) —
     // separate from financialTransactions, which only ever moves credits.
     db
