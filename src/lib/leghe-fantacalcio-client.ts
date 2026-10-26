@@ -36,15 +36,26 @@ async function loadAuthHeaders(): Promise<Record<string, string>> {
     throw new Error("LEGHE_APP_KEY / LEGHE_AUTH_TOKEN non configurati (vedi pagina Impostazioni)");
   }
   return {
-    accept: "application/json",
+    accept: "application/json, text/plain, */*",
     App_Key: appKey.trim(),
     Authorization: authToken.trim(),
+    // The API answers 403 {"code":"FAIL"} to requests that don't look like
+    // they came from the league's own web app, even with valid credentials:
+    // a browser User-Agent alone was enough until late October 2026, then
+    // the fetch-metadata/language headers a browser sends became required
+    // too. Verified: this exact set returns 200; dropping them returns 403.
+    // The owner chose to have the app send browser-style headers; if leghe
+    // tightens the check again this is the first place to look.
+    "accept-language": "it-IT,it;q=0.9,en-GB;q=0.8,en;q=0.7",
+    "cache-control": "no-cache",
+    pragma: "no-cache",
     origin: "https://leghe.fantacalcio.it",
     referer: "https://leghe.fantacalcio.it/",
-    // The API's WAF now answers 403 {"code":"FAIL"} to Node's default
-    // fetch User-Agent even with valid credentials — a browser UA is required.
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-site",
     "user-agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
   };
 }
 
