@@ -125,12 +125,16 @@ export function LiveMatchesFeed({ matchday }: { matchday: number | null }) {
           .filter((m) => m.status === "finished")
           .sort((a, b) => new Date(b.kickoffDateTime).getTime() - new Date(a.kickoffDateTime).getTime())[0]
       : undefined;
-  const nextScheduled =
+  const upcoming =
     live.length === 0 && !lastFinished
       ? [...matches]
           .filter((m) => m.status === "scheduled")
-          .sort((a, b) => new Date(a.kickoffDateTime).getTime() - new Date(b.kickoffDateTime).getTime())[0]
-      : undefined;
+          .sort((a, b) => new Date(a.kickoffDateTime).getTime() - new Date(b.kickoffDateTime).getTime())
+      : [];
+  const nextScheduled = upcoming[0];
+  // sm+ shows the next two kickoffs; mobile keeps just the first and leaves
+  // the second to the expandable grid.
+  const secondScheduled = upcoming[1];
   const featured = live.length > 0 ? live : lastFinished ? [lastFinished] : nextScheduled ? [nextScheduled] : [];
   // Whatever's already shown in the featured row above shouldn't repeat in
   // the grid below.
@@ -172,6 +176,11 @@ export function LiveMatchesFeed({ matchday }: { matchday: number | null }) {
               <FeaturedRow key={match.id} match={match} t={t} />
             )
           )}
+          {secondScheduled && (
+            <div className="hidden sm:block">
+              <FeaturedRow match={secondScheduled} t={t} />
+            </div>
+          )}
         </div>
       )}
 
@@ -188,9 +197,16 @@ export function LiveMatchesFeed({ matchday }: { matchday: number | null }) {
 
           {expanded && (
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {gridMatches.map((match) => (
-                <GridCard key={match.id} match={match} t={t} />
-              ))}
+              {gridMatches.map((match) =>
+                match.id === secondScheduled?.id ? (
+                  // Already featured on sm+, so only mobile lists it here.
+                  <div key={match.id} className="sm:hidden">
+                    <GridCard match={match} t={t} />
+                  </div>
+                ) : (
+                  <GridCard key={match.id} match={match} t={t} />
+                )
+              )}
             </div>
           )}
         </>

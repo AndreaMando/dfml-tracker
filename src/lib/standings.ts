@@ -12,6 +12,8 @@ import {
 export type StandingsRow = {
   rosterId: string;
   rosterName: string | null;
+  // Coach/manager name (participants.displayName) — shown under the team name.
+  ownerName: string | null;
   played: number;
   won: number;
   drawn: number;
@@ -49,7 +51,7 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
       .where(eq(standingsPenalties.seasonId, seasonId))
       .groupBy(standingsPenalties.rosterId),
   ]);
-  const table = new Map<string, Omit<StandingsRow, "rosterName" | "penaltyPoints">>();
+  const table = new Map<string, Omit<StandingsRow, "rosterName" | "ownerName" | "penaltyPoints">>();
   for (const roster of seasonRosters) {
     table.set(roster.id, {
       rosterId: roster.id,
@@ -109,6 +111,9 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
     ? await db.select().from(participants).where(inArray(participants.id, participantIds))
     : [];
   const participantById = new Map(participantRows.map((p) => [p.id, p]));
+  const ownerNameMap = new Map(
+    seasonRosters.map((r) => [r.id, participantById.get(r.participantId)?.displayName ?? null])
+  );
   const rosterNameMap = new Map(
     seasonRosters.map((r) => {
       const participant = participantById.get(r.participantId);
@@ -154,7 +159,11 @@ export async function computeStandings(seasonId: string): Promise<StandingsRow[]
   }
 
   return rows
-    .map((row) => ({ ...row, rosterName: rosterNameMap.get(row.rosterId) ?? null }))
+    .map((row) => ({
+      ...row,
+      rosterName: rosterNameMap.get(row.rosterId) ?? null,
+      ownerName: ownerNameMap.get(row.rosterId) ?? null,
+    }))
     .sort((a, b) => b.points - a.points || b.totalScore - a.totalScore);
 }
 
