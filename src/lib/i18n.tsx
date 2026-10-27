@@ -9,6 +9,12 @@ const DEFAULT_LANG: Lang = "it";
 const translations: Record<Lang, Record<string, string>> = {
   en: {
     //English texts are default
+    // Gendered Italian labels share one English word, so these keys need
+    // explicit English values (the key itself isn't display text).
+    "participant.active": "Active",
+    "participant.inactive": "Inactive",
+    "roster.active": "Active",
+    "roster.inactive": "Inactive",
   },
   it: {
     "Dashboard": "Panoramica",
@@ -18,6 +24,8 @@ const translations: Record<Lang, Record<string, string>> = {
     "Players": "Giocatori",
     "Rosters": "Rose",
     "Player Stats": "Statistiche giocatori",
+    "Player list": "Lista giocatori",
+    "Market & Trades": "Mercato e Scambi",
     "Season-long stats for every player, sortable and searchable.": "Statistiche stagionali di ogni giocatore, ordinabili e ricercabili.",
     "PG": "PG",
     "Appearances": "Presenze",
@@ -70,6 +78,13 @@ const translations: Record<Lang, Record<string, string>> = {
     "Table": "Tabella",
     "Active": "Attivi",
     "Inactive": "Inattivi",
+    "participant.active": "Attivo",
+    "participant.inactive": "Inattivo",
+    "roster.active": "Attiva",
+    "roster.inactive": "Inattiva",
+    "All rosters": "Tutte",
+    "Active rosters": "Attive",
+    "Inactive rosters": "Inattive",
     "Pending": "In attesa",
     "Submitted": "Inviata",
     "scheduled": "programmata",

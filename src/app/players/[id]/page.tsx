@@ -71,7 +71,7 @@ export default function PlayerDetailPage() {
 
   if (loading) {
     return (
-      <ModuleShell title={t("Players")} description="" backHref="/players" backLabel={t("Back to players")}>
+      <ModuleShell title={t("Players")} backHref="/players" backLabel={t("Back to players")}>
         <p className="text-sm text-ink-muted">{t("Loading")}...</p>
       </ModuleShell>
     );
@@ -79,7 +79,7 @@ export default function PlayerDetailPage() {
 
   if (!player) {
     return (
-      <ModuleShell title={t("Players")} description="" backHref="/players" backLabel={t("Back to players")}>
+      <ModuleShell title={t("Players")} backHref="/players" backLabel={t("Back to players")}>
         <p className="text-sm text-ink-muted">{t("Player not found")}</p>
       </ModuleShell>
     );

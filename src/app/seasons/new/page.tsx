@@ -113,7 +113,6 @@ export default function SeasonCreatePage() {
     return (
       <ModuleShell
         title={t("Create Season")}
-        description={t("Add a new league season to the tracker.")}
         backHref="/seasons"
         backLabel={t("Back to seasons")}
       >
@@ -244,7 +243,6 @@ export default function SeasonCreatePage() {
   return (
     <ModuleShell
       title={t("Create Season")}
-      description={t("Add a new league season to the tracker.")}
       backHref="/seasons"
       backLabel={t("Back to seasons")}
     >
@@ -279,7 +277,7 @@ export default function SeasonCreatePage() {
             className="w-full rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink outline-none transition focus:border-azure focus:ring-2 focus:ring-azure/20"
           >
             <option value="draft">{t("Draft")}</option>
-            <option value="active">{t("Active")}</option>
+            <option value="active">{t("Season active")}</option>
             <option value="finished">{t("Finished")}</option>
           </select>
         </label>

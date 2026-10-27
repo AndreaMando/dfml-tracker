@@ -79,7 +79,7 @@ export default function StandingsPage() {
   ];
 
   return (
-    <ModuleShell title={t("Standings")} description={t("Monitor the live table and current league positions.")}>
+    <ModuleShell title={t("Standings")}>
       <div className="mb-6 flex flex-wrap items-end gap-4">
         <label className="block max-w-xs space-y-2 text-sm text-ink">
           <span>{t("Season")}</span>

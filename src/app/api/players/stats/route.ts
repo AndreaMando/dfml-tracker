@@ -17,7 +17,11 @@ export async function GET(request: Request) {
       position: players.position,
       teamName: players.teamName,
       status: players.status,
-      appearances: sqlOp<number>`count(${matchdayScores.id})`.mapWith(Number),
+      // Only matchdays where the player actually got a vote. A matchdayScores
+      // row also exists for bench players and for a matchday whose lineups are
+      // locked but not played yet (vote still null) — counting those inflated
+      // appearances (e.g. 9 "games" after 8 played matchdays).
+      appearances: sqlOp<number>`count(${matchdayScores.vote})`.mapWith(Number),
       totalScore: sqlOp<number>`coalesce(sum(${matchdayScores.score}), 0)`.mapWith(Number),
       avgVote: sqlOp<number>`coalesce(avg(${matchdayScores.vote}), 0)`.mapWith(Number),
       goals: sqlOp<number>`coalesce(sum(${matchdayScores.goals}), 0)`.mapWith(Number),

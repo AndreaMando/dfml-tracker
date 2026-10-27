@@ -348,7 +348,7 @@ export default function ScoresPage() {
   }, [seasonId, matchdayNumber]);
 
   return (
-    <ModuleShell title={t("Results & Votes")} description={t("Review matchday results and vote-based scoring summaries.")}>
+    <ModuleShell title={t("Results & Votes")}>
       <div className="mb-6 flex flex-wrap items-end gap-4">
         <label className="block space-y-2 text-sm text-ink">
           <span>{t("Season")}</span>
@@ -468,7 +468,7 @@ export default function ScoresPage() {
       </SectionCard>
 
       {cupFixtures.length > 0 && (
-        <SectionCard title={t("Cup")} description={t("Cup fixtures for this matchday.")}>
+        <SectionCard title={t("Cup")}>
           <div className="space-y-3">
             {cupFixtures.map((fixture) => (
               <CupFixtureCard

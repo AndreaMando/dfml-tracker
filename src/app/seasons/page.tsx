@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
-import { SectionCard } from "../../components/section-card";
 import { useTranslation } from "../../lib/i18n";
 
 type Season = {
@@ -22,6 +21,15 @@ const STATUS_LABELS: Record<string, string> = {
   archived: "Season archived",
 };
 
+// Same palette as the History page: green for the active season, so the
+// "active" tint is the same everywhere.
+const STATUS_STYLES: Record<string, string> = {
+  draft: "bg-surface-alt text-ink-muted",
+  active: "bg-emerald-50 text-emerald-700",
+  finished: "bg-azure-soft text-azure-deep",
+  archived: "bg-ink/80 text-white",
+};
+
 export default function SeasonsPage() {
   const { t } = useTranslation();
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -35,53 +43,53 @@ export default function SeasonsPage() {
   }, []);
 
   return (
-    <ModuleShell
-      title={t("Seasons")}
-      description={t("Track season status, participants and the current matchday cadence.")}
-    >
-      <SectionCard title={t("Season summary")} description={t("Overview of the current season")}>
-        {loading ? (
-          <p className="text-sm text-ink-muted">{t("Loading")}...</p>
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {seasons.map((season) => (
-              <article key={season.id} className="rounded-3xl border border-line bg-surface p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-semibold text-ink">{season.name}</h2>
-                    <p className="mt-1 text-sm text-ink-muted">{season.year}</p>
-                  </div>
-                  <span className="rounded-full border border-azure/20 bg-azure-soft px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-azure-deep">
-                    {t(STATUS_LABELS[season.status] ?? season.status)}
-                  </span>
-                </div>
-                {season.startDate && season.endDate && (
-                  <div className="mt-4 flex items-center justify-between rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink">
-                    <span>{t("Planned matchdays")}</span>
-                    <strong className="text-ink">
-                      {season.startDate.slice(0, 4)} → {season.endDate.slice(0, 4)}
-                    </strong>
-                  </div>
-                )}
-                {season.status === "active" && (
-                  <Link
-                    href="/history"
-                    className="mt-4 inline-flex text-sm font-medium text-azure transition hover:text-azure-deep"
-                  >
-                    {t("Close season")} →
-                  </Link>
-                )}
-              </article>
-            ))}
-          </div>
-        )}
-      </SectionCard>
-
-      <SectionCard title={t("Create Season")} description={t("Create a new league season and configure the schedule.")}>
-        <Link href="/seasons/new" className="inline-flex rounded-2xl border border-azure/20 bg-azure-soft px-4 py-3 text-sm font-semibold text-azure-deep transition hover:bg-azure/10">
+    <ModuleShell title={t("Seasons")}>
+      <div>
+        <Link
+          href="/seasons/new"
+          className="inline-flex rounded-2xl border border-azure/20 bg-azure-soft px-4 py-3 text-sm font-semibold text-azure-deep transition hover:bg-azure/10"
+        >
           {t("Create season")}
         </Link>
-      </SectionCard>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-ink-muted">{t("Loading")}...</p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {seasons.map((season) => (
+            <article key={season.id} className="rounded-3xl border border-line bg-surface p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-ink">{season.name}</h2>
+                  <p className="mt-1 text-sm text-ink-muted">{season.year}</p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${STATUS_STYLES[season.status] ?? "bg-surface-alt text-ink-muted"}`}
+                >
+                  {t(STATUS_LABELS[season.status] ?? season.status)}
+                </span>
+              </div>
+              {season.startDate && season.endDate && (
+                <div className="mt-4 flex items-center justify-between rounded-2xl border border-line bg-surface-alt px-4 py-3 text-sm text-ink">
+                  <span>{t("Planned matchdays")}</span>
+                  <strong className="text-ink">
+                    {season.startDate.slice(0, 4)} → {season.endDate.slice(0, 4)}
+                  </strong>
+                </div>
+              )}
+              {season.status === "active" && (
+                <Link
+                  href="/history"
+                  className="mt-4 inline-flex text-sm font-medium text-azure transition hover:text-azure-deep"
+                >
+                  {t("Close season")} →
+                </Link>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
     </ModuleShell>
   );
 }

@@ -73,7 +73,7 @@ export default function ParticipantDetailPage() {
 
   if (loading) {
     return (
-      <ModuleShell title={t("Participants")} description="" backHref="/participants" backLabel={t("Back to participants")}>
+      <ModuleShell title={t("Participants")} backHref="/participants" backLabel={t("Back to participants")}>
         <p className="text-sm text-ink-muted">{t("Loading")}...</p>
       </ModuleShell>
     );
@@ -81,7 +81,7 @@ export default function ParticipantDetailPage() {
 
   if (!participant) {
     return (
-      <ModuleShell title={t("Participants")} description="" backHref="/participants" backLabel={t("Back to participants")}>
+      <ModuleShell title={t("Participants")} backHref="/participants" backLabel={t("Back to participants")}>
         <p className="text-sm text-ink-muted">{t("Participant not found")}</p>
       </ModuleShell>
     );
@@ -157,7 +157,7 @@ export default function ParticipantDetailPage() {
               onChange={(event) => setForm((f) => ({ ...f, isActive: event.target.checked }))}
               className="h-4 w-4 rounded border-line bg-surface-alt"
             />
-            <span>{t("Active")}</span>
+            <span>{t("participant.active")}</span>
           </label>
 
           <div className="flex flex-wrap gap-3">

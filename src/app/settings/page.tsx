@@ -113,8 +113,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <ModuleShell title={t("Settings")} description={t("leghe.fantacalcio.it credentials, updated without a redeploy.")}>
-      <SectionCard title={t("leghe.fantacalcio.it credentials")} description={t("Used for calendar, formations, results and listone sync.")}>
+    <ModuleShell title={t("Settings")}>
+      <SectionCard title={t("leghe.fantacalcio.it credentials")}>
         {!data ? (
           <p className="text-sm text-ink-muted">{authorized === false ? t("Locked — enter the password to view.") : `${t("Loading")}...`}</p>
         ) : (

@@ -27,7 +27,7 @@ const navigation = [
   { href: "/participants", labelKey: "Participants", icon: Users },
   { href: "/players", labelKey: "Players", icon: Trophy },
   { href: "/rosters", labelKey: "Rosters", icon: ClipboardList },
-  { href: "/market", labelKey: "Market", icon: ShoppingCart },
+  { href: "/market", labelKey: "Market & Trades", icon: ShoppingCart },
   { href: "/scores", labelKey: "Results", icon: Goal },
   { href: "/standings", labelKey: "Standings", icon: Trophy },
   { href: "/finance", labelKey: "Finance & Penalties", icon: CircleDollarSign },

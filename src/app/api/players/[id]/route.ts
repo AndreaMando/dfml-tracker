@@ -42,7 +42,8 @@ export async function GET(
   // for, same fields the Player Stats table aggregates per season.
   const [stats] = await db
     .select({
-      appearances: sqlOp<number>`count(${matchdayScores.id})`.mapWith(Number),
+      // Only matchdays with a real vote — rows without one are bench/unplayed.
+      appearances: sqlOp<number>`count(${matchdayScores.vote})`.mapWith(Number),
       avgVote: sqlOp<number>`coalesce(avg(${matchdayScores.vote}), 0)`.mapWith(Number),
       goals: sqlOp<number>`coalesce(sum(${matchdayScores.goals}), 0)`.mapWith(Number),
       assists: sqlOp<number>`coalesce(sum(${matchdayScores.assists}), 0)`.mapWith(Number),

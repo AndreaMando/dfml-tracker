@@ -85,7 +85,7 @@ function OwnerBadge({ player, t }: { player: Player; t: (key: string) => string 
 export default function PlayersPage() {
   const { t } = useTranslation();
   const tabs = [
-    { id: "all", label: t("All") },
+    { id: "all", label: t("Player list") },
     { id: "stats", label: t("Player Stats") },
   ];
   const [activeTab, setActiveTab] = useState("all");
@@ -257,9 +257,8 @@ export default function PlayersPage() {
   return (
     <ModuleShell
       title={t("Players")}
-      description={t("Browse player pool, positions and current valuations.")}
     >
-      <div className="mb-6 flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {positions.map((position) => (
@@ -280,23 +279,17 @@ export default function PlayersPage() {
               {t("Show transferred")}
             </label>
           </div>
-          <Link
-            href="/players/new"
-            className="rounded-2xl border border-azure/20 bg-azure-soft px-4 py-2 text-sm font-semibold text-azure-deep transition hover:bg-azure/10"
-          >
-            {t("Add player")}
-          </Link>
         </div>
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
       </div>
 
       {syncError && (
-        <p className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {t("Sync failed")}: {syncError}
         </p>
       )}
 
-      <div className="mt-6">
+      <div>
         {activeTab === "all" ? (
           loading ? (
             <p className="text-sm text-ink-muted">{t("Loading")}...</p>

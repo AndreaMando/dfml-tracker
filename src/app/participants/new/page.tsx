@@ -58,7 +58,6 @@ export default function ParticipantCreatePage() {
   return (
     <ModuleShell
       title={t("Create Participant")}
-      description={t("Add a new league participant.")}
       backHref="/participants"
       backLabel={t("Back to participants")}
     >

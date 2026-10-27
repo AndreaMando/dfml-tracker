@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslation } from "../lib/i18n";
 import { fetchJsonShared } from "../lib/fetch-json";
@@ -87,14 +88,16 @@ export default function Home() {
       <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">{t("Dashboard")}</h1>
 
       <SectionCard title={t("Season summary")}>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        {/* md+: participants top-left, leader bottom-left, best player spanning the
+            whole right side. Mobile: single column in DOM order. */}
+        <div className="grid gap-3 md:grid-cols-2 md:grid-rows-2">
+          <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 md:col-start-1 md:row-start-1">
             <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{t("Active participants")}</p>
             <p className="mt-2 font-mono-data text-2xl font-semibold text-[var(--ink)]">
               {participantsCount?.toString() ?? "—"}
             </p>
           </div>
-          <div className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <div className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 md:col-start-1 md:row-start-2">
             <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{t("League leader")}</p>
             <p className="mt-2 truncate font-mono-data text-2xl font-semibold text-[var(--ink)]">
               {leader?.teamName ?? "—"}
@@ -102,27 +105,32 @@ export default function Home() {
             {leader?.ownerName && <p className="mt-0.5 truncate text-sm text-[var(--ink-muted)]">{leader.ownerName}</p>}
           </div>
 
-          <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 md:col-span-2">
-            <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{t("Best player")}</p>
-            {bestPlayer ? (
-              <div className="mt-3 flex items-center gap-4">
+          {bestPlayer ? (
+            <Link
+              href={`/players/${bestPlayer.playerId}`}
+              className="group min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:border-[var(--azure)] hover:shadow-sm md:col-start-2 md:row-span-2 md:row-start-1"
+            >
+              <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{t("Best player")}</p>
+              <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
                 {bestPlayer.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={bestPlayer.imageUrl}
                     alt={bestPlayer.fullName}
-                    className="aspect-[255/378] w-20 shrink-0 rounded-xl object-cover sm:w-24"
+                    className="aspect-[255/378] w-40 shrink-0 rounded-xl object-cover sm:w-32 lg:w-44"
                   />
                 ) : (
-                  <div className="flex aspect-[255/378] w-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--line)] text-[var(--ink-muted)] sm:w-24">
-                    <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8" aria-hidden="true">
+                  <div className="flex aspect-[255/378] w-40 shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--line)] text-[var(--ink-muted)] sm:w-32 lg:w-44">
+                    <svg viewBox="0 0 24 24" fill="none" className="h-12 w-12" aria-hidden="true">
                       <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
                       <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                   </div>
                 )}
-                <div className="min-w-0">
-                  <p className="font-mono-data text-2xl font-semibold text-[var(--ink)]">{bestPlayer.fullName}</p>
+                <div className="min-w-0 text-center sm:text-left">
+                  <p className="break-words font-mono-data text-2xl font-semibold text-[var(--ink)] group-hover:text-[var(--azure-deep)]">
+                    {bestPlayer.fullName}
+                  </p>
                   <p className="mt-1 text-sm text-[var(--ink-muted)]">{bestPlayer.teamName ?? "—"}</p>
                   <p className="mt-0.5 text-sm text-[var(--ink-muted)]">
                     {bestPlayer.ownerRosterName
@@ -131,10 +139,13 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-            ) : (
+            </Link>
+          ) : (
+            <div className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 md:col-start-2 md:row-span-2 md:row-start-1">
+              <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{t("Best player")}</p>
               <p className="mt-2 font-mono-data text-2xl font-semibold text-[var(--ink)]">—</p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </SectionCard>
 

@@ -7,7 +7,7 @@ import { useTranslation } from "../lib/i18n";
 
 type ModuleShellProps = {
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
   // Sub-pages reached from a listing (a detail view, a "new" form) should
   // point back to that listing instead of the dashboard.
@@ -33,7 +33,7 @@ export function ModuleShell({ title, description, children, backHref = "/", back
             <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">
               {title}
             </h1>
-            <p className="mt-1 text-sm text-[var(--ink-muted)]">{description}</p>
+            {description ? <p className="mt-1 text-sm text-[var(--ink-muted)]">{description}</p> : null}
           </div>
         </div>
       </div>

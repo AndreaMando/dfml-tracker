@@ -206,7 +206,7 @@ export default function RosterDetailPage() {
 
   if (loading) {
     return (
-      <ModuleShell title={t("Rosters")} description="" backHref="/rosters" backLabel={t("Back to rosters")}>
+      <ModuleShell title={t("Rosters")} backHref="/rosters" backLabel={t("Back to rosters")}>
         <p className="text-sm text-ink-muted">{t("Loading")}...</p>
       </ModuleShell>
     );
@@ -214,7 +214,7 @@ export default function RosterDetailPage() {
 
   if (!roster) {
     return (
-      <ModuleShell title={t("Rosters")} description="" backHref="/rosters" backLabel={t("Back to rosters")}>
+      <ModuleShell title={t("Rosters")} backHref="/rosters" backLabel={t("Back to rosters")}>
         <p className="text-sm text-ink-muted">{t("Roster not found")}</p>
       </ModuleShell>
     );

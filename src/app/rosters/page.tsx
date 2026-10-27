@@ -59,14 +59,13 @@ export default function RostersPage() {
   return (
     <ModuleShell
       title={t("Rosters")}
-      description={t("Review squads, player count and remaining budget for every roster.")}
     >
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap gap-2">
           {filterOptions.map((option) => (
             <FilterPill
               key={option}
-              label={t(option === "all" ? "All" : option === "active" ? "Active" : "Inactive")}
+              label={t(option === "all" ? "All rosters" : option === "active" ? "Active rosters" : "Inactive rosters")}
               active={activeFilter === option}
               onClick={() => setActiveFilter(option)}
             />
@@ -98,8 +97,8 @@ export default function RostersPage() {
                   <h2 className="text-xl font-semibold text-ink">{roster.name}</h2>
                   <p className="mt-1 text-sm text-ink-muted">{roster.participantName ?? "—"}</p>
                 </div>
-                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${roster.isActive ? "bg-emerald-50 text-emerald-700" : "bg-surface-alt text-ink"}`}>
-                  {roster.isActive ? t("Active") : t("Inactive")}
+                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${roster.isActive ? "bg-emerald-50 text-emerald-700" : "bg-surface-alt text-ink-muted"}`}>
+                  {roster.isActive ? t("roster.active") : t("roster.inactive")}
                 </span>
               </div>
               {championBadges.length > 0 && (

@@ -66,7 +66,6 @@ export default function RosterCreatePage() {
   return (
     <ModuleShell
       title={t("Create Roster")}
-      description={t("Build a new roster for the season.")}
       backHref="/rosters"
       backLabel={t("Back to rosters")}
     >

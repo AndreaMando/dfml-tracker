@@ -217,8 +217,8 @@ export default function FinancePage() {
   }
 
   return (
-    <ModuleShell title={t("Finance & Penalties")} description={t("Keep track of league fees, prizes, penalties and transaction balance.")}>
-      <label className="mb-6 block space-y-2 text-sm text-ink">
+    <ModuleShell title={t("Finance & Penalties")}>
+      <label className="block space-y-2 text-sm text-ink">
         <span>{t("Season")}</span>
         <select
           value={seasonId}
@@ -233,7 +233,7 @@ export default function FinancePage() {
         </select>
       </label>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title={t("League")}>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-surface-alt p-4">
@@ -301,7 +301,7 @@ export default function FinancePage() {
         </SectionCard>
       </div>
 
-      <SectionCard title={t("Fines")} description={t("Total fines owed per fantasy team, entered manually.")}>
+      <SectionCard title={t("Fines")}>
         {loading ? (
           <p className="text-sm text-ink-muted">{t("Loading")}...</p>
         ) : (
@@ -420,8 +420,8 @@ export default function FinancePage() {
         </form>
       </SectionCard>
 
-      <div className="mt-6">
-        <SectionCard title={t("Standings penalties")} description={t("Points deducted from a fantasy team's final standings, entered manually.")}>
+      <div>
+        <SectionCard title={t("Standings penalties")}>
           {penaltiesLoading ? (
             <p className="text-sm text-ink-muted">{t("Loading")}...</p>
           ) : (

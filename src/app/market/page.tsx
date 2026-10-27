@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { X } from "lucide-react";
+import { ArrowLeftRight, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ModuleShell } from "../../components/module-shell";
 import { SectionCard } from "../../components/section-card";
@@ -141,9 +141,8 @@ export default function MarketPage() {
   return (
     <ModuleShell
       title={t("Market")}
-      description={t("Track transfer sessions, movement windows and market activity.")}
     >
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <span
           className={`rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] ${
             marketOpen
@@ -155,13 +154,14 @@ export default function MarketPage() {
         </span>
         <Link
           href="/market/trades"
-          className="rounded-2xl border border-azure/20 bg-azure-soft px-4 py-2 text-sm font-semibold text-azure-deep transition hover:bg-azure/10"
+          className="inline-flex items-center gap-2 rounded-2xl bg-azure px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-azure-deep"
         >
+          <ArrowLeftRight size={16} />
           {t("Trades")}
         </Link>
       </div>
 
-      <label className="mb-4 block space-y-2 text-sm text-ink">
+      <label className="block space-y-2 text-sm text-ink">
         <span>{t("Season")}</span>
         <select
           value={seasonId}
@@ -176,7 +176,7 @@ export default function MarketPage() {
         </select>
       </label>
 
-      <SectionCard title={t("Market sessions")} description={t("All auction and repair windows for this season.")}>
+      <SectionCard title={t("Market sessions")}>
         {loading ? (
           <p className="text-sm text-ink-muted">{t("Loading")}...</p>
         ) : (

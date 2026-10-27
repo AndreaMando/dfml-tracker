@@ -56,9 +56,8 @@ export default function ParticipantsPage() {
   return (
     <ModuleShell
       title={t("Participants")}
-      description={t("Manage the league roster of teams and their current state.")}
     >
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {statusFilters.map((status) => (
             <FilterPill
@@ -95,8 +94,8 @@ export default function ParticipantsPage() {
                     <h2 className="text-xl font-semibold text-ink">{participant.displayName}</h2>
                     <p className="mt-1 text-sm text-ink-muted">{participant.teamName ?? "—"}</p>
                   </div>
-                  <span className="shrink-0 rounded-full border border-azure/20 bg-azure-soft px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-azure-deep">
-                    {participant.isActive ? t("Active") : t("Inactive")}
+                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${participant.isActive ? "bg-emerald-50 text-emerald-700" : "bg-surface-alt text-ink-muted"}`}>
+                    {participant.isActive ? t("participant.active") : t("participant.inactive")}
                   </span>
                 </div>
                 {championBadges.length > 0 && (

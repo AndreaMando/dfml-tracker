@@ -198,7 +198,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <ModuleShell title={t("History")} description={t("Review the recent chronology of league actions.")}>
+    <ModuleShell title={t("History")}>
       {loading ? (
         <p className="text-sm text-ink-muted">{t("Loading")}...</p>
       ) : (

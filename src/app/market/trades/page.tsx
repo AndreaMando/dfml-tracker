@@ -211,7 +211,6 @@ export default function TradesPage() {
   return (
     <ModuleShell
       title={t("Trades")}
-      description={t("Record a trade between two fantasy teams.")}
       backHref="/market"
       backLabel={t("Back to market")}
     >
@@ -253,7 +252,7 @@ export default function TradesPage() {
         </button>
       </div>
 
-      <SectionCard title={t("Trade history")} description={t("Trades recorded so far.")}>
+      <SectionCard title={t("Trade history")}>
         {history.length === 0 ? (
           <p className="text-sm text-ink-muted">{t("No data yet")}</p>
         ) : (
